@@ -29,25 +29,61 @@
 #include <kern/mmu.h>
 
 /* Offsets from gic.gicc_base */
-#define GICC_CTLR		0
+#define GICC_CTLR		(0x000)
 
 #define GICC_CTLR_ENABLEGRP0	(1 << 0)
 #define GICC_CTLR_ENABLEGRP1	(1 << 1)
 #define GICC_CTLR_FIQEN		(1 << 3)
 
 /* Offsets from gic.gicd_base */
-#define GICD_CTLR		0
+#define GICD_CTLR		(0x000)
+#define GICD_TYPER		(0x004)
+#define GICD_IGROUPR(n)         (0x080 + (n) * 4)
+#define GICD_ISENABLER(n)       (0x100 + (n) * 4)
 #define GICD_ICENABLER(n)       (0x180 + (n) * 4)
 #define GICD_ICPENDR(n)         (0x280 + (n) * 4)
-#define GICD_IGROUPR(n)         (0x080 + (n) * 4)
 
+/* Maximum number of interrups a GIC can support */
+#define GIC_MAX_INTS		1020
 
 
 static struct {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
-	size_t max_ints;
+	size_t max_int;
 } gic;
+
+static size_t probe_max_int(void)
+{
+	int i;
+	uint32_t old_ctlr;
+	size_t ret = 0;
+
+	/*
+	 * Probe which interrupt number is the largest.
+	 */
+	old_ctlr = read32(gic.gicc_base + GICC_CTLR);
+	write32(0, gic.gicc_base + GICC_CTLR);
+	for (i = GIC_MAX_INTS / 32; i > 0; i--) {
+		uint32_t old_reg;
+		uint32_t reg;
+		int b;
+
+		old_reg = read32(gic.gicd_base + GICD_ISENABLER(i));
+		write32(0xffffffff, gic.gicd_base + GICD_ISENABLER(i));
+		reg = read32(gic.gicd_base + GICD_ISENABLER(i));
+		write32(old_reg, gic.gicd_base + GICD_ICENABLER(i));
+		for (b = 31; b > 0; b--) {
+			if ((1 << b) & reg) {
+				ret = i * 32 + b;
+				goto out;
+			}
+		}
+	}
+out:
+	write32(old_ctlr, gic.gicc_base + GICC_CTLR);
+	return ret;
+}
 
 void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
 {
@@ -55,17 +91,17 @@ void gic_init(vaddr_t gicc_base, vaddr_t gicd_base)
 
 	gic.gicc_base = gicc_base;
 	gic.gicd_base = gicd_base;
-	gic.max_ints = 3 * 32; /* TODO probe this */
+	gic.max_int = probe_max_int();
 
-	for (n = 0; n < gic.max_ints / 32; n++) {
+	for (n = 0; n <= gic.max_int / 32; n++) {
 		/* Disable interrupts */
-		write32(-1, gic.gicd_base + GICD_ICENABLER(n));
+		write32(0xffffffff, gic.gicd_base + GICD_ICENABLER(n));
 
 		/* Make interrupts non-pending */
-		write32(-1, gic.gicd_base + GICD_ICPENDR(n));
+		write32(0xffffffff, gic.gicd_base + GICD_ICPENDR(n));
 
 		/* Mark interrupts non-secure */
-		write32(-1, gic.gicd_base + GICD_IGROUPR(n));
+		write32(0xffffffff, gic.gicd_base + GICD_IGROUPR(n));
 	}
 
 	/* Enable GIC */
