@@ -126,7 +126,7 @@ LOCAL_FUNC sm_smc_entry , :
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where rfefd will read */
 	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 	b	.smc_exit
-	
+
 .smc_ret_to_nsec:
 	/*
 	 * When doing a return from secure world to non-secure world
@@ -216,7 +216,7 @@ LOCAL_FUNC sm_fiq_entry , :
 	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	ldm	r1, {r2-r3}		/* Load SPSR and LR from stack */
 	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
-	
+
 	/* Clear NS bit in SCR */
 	mrc	p15, 0, r0, c1,c1, 0
 	bic	r0, r0, #SCR_NS
@@ -231,7 +231,7 @@ LOCAL_FUNC sm_fiq_entry , :
 	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 
 	ldr	r0, =SMC_CALL_HANDLE_FIQ /* Post the FIQ to Trusted OS */
-	
+
 	add	sp, sp, #FIQ_ENTRY_R0R12_OFFS /* Peal of what was pushed */
 	rfefd	sp!
 END_FUNC sm_fiq_entry

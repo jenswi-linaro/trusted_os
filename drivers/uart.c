@@ -90,7 +90,8 @@
 
 void uart_flush_tx_fifo(vaddr_t base)
 {
-	while (!(read32(base + UART_FR) & UART_FR_TXFE));
+	while (!(read32(base + UART_FR) & UART_FR_TXFE))
+		;
 }
 
 void uart_init(vaddr_t base)
@@ -108,11 +109,12 @@ void uart_init(vaddr_t base)
 
 void uart_putc(int ch, vaddr_t base)
 {
-    /*
-     * Wait until there is space in the FIFO
-     */
-    while (read32(base + UART_FR) & UART_FR_TXFF);
+	/*
+	 * Wait until there is space in the FIFO
+	 */
+	while (read32(base + UART_FR) & UART_FR_TXFF)
+		;
 
-    /* Send the character */
-    write32(ch, base + UART_DR);
+	/* Send the character */
+	write32(ch, base + UART_DR);
 }

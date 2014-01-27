@@ -31,6 +31,6 @@
 typedef void (*kvprintf_putc)(int ch, void *arg);
 
 int kvprintf(kvprintf_putc putc, void *arg, int radix,
-                const char *fmt, va_list ap);
+		const char *fmt, va_list ap);
 
 #endif /*KVPRINTF_H*/

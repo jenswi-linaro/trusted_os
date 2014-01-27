@@ -223,7 +223,7 @@ LOCAL_FUNC thread_irq_handler , :
 	bl	thread_get_tmp_sp
 	cps	#CPSR_MODE_SVC		/* Change to SVC mode */
 	mov	sp, r0			/* Switch to tmp stack */
-	
+
 	mov	r0, #0
 	mov	r1, r4			/* CPSR to restore */
 	ldr	r2, .thread_irq_return

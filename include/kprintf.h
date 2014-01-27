@@ -35,6 +35,6 @@ void kprintf_init(kvprintf_putc putc, kprintf_flush_output flush_output,
 		void *arg);
 
 void kprintf(const char *fmt, ...)
-	__attribute__ ((__format__ (__printf__, 1, 2)));
+	__attribute__((__format__(__printf__, 1, 2)));
 
 #endif /*KPRINTF_H*/

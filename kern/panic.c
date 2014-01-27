@@ -30,5 +30,6 @@
 void __panic(const char *file, int line, const char *func)
 {
 	kprintf("ABORT: %s %s:%d\n", func, file, line);
-	while (1);
+	while (1)
+		;
 }

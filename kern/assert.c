@@ -30,5 +30,6 @@
 void __assert(const char *expr, const char *file, int line, const char *func)
 {
 	kprintf("Assert: %s %s:%d: \"%s\"\n", func, file, line, expr);
-	while (1);
+	while (1)
+		;
 }
