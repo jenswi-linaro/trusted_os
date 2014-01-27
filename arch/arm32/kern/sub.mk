@@ -1,0 +1,9 @@
+srcs-y += cache.c
+srcs-y += mmu.c
+srcs-y += mutex.c
+srcs-y += entry.S
+srcs-y += main.c
+srcs-y += misc.S
+srcs-y += mutex_asm.S
+srcs-y += thread_asm.S
+srcs-y += thread.c
