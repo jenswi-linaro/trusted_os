@@ -44,9 +44,9 @@
 #define	SMC_OWNER_NUM(smc_val)		(((smc_val) >> SMC_OWNER_SHIFT) & \
 					 SMC_OWNER_MASK)
 
-#define SMC_CALL_VAL(type, calling_convention, entity, func_num) \
+#define SMC_CALL_VAL(type, calling_convention, owner, func_num) \
 			((type) | (calling_convention) | \
-			(((entity) & SMC_OWNER_MASK) << SMC_OWNER_SHIFT) | \
+			(((owner) & SMC_OWNER_MASK) << SMC_OWNER_SHIFT) | \
 			((func_num) & SMC_FUNC_MASK))
 
 #define SMC_OWNER_ARCH		0

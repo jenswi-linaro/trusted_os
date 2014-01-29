@@ -24,27 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef PLAT_H
-#define PLAT_H
+#ifndef TEE_ENTRY_H
+#define TEE_ENTRY_H
 
-#define STACK_TMP_SIZE		256	/* TODO minimize */
-#define STACK_ABT_SIZE		1024
-#define STACK_THREAD_SIZE	(8 * 1024)
-#define STACK_ALIGMENT		8
+#include <kern/thread.h>
 
-#define MMU_L1_NUM_ENTRIES	4096		/* Maps 4 GiB */
-#define MMU_L1_ALIGNMENT	(1 << 14)	/* 16 KiB aligned */
+void tee_entry(struct thread_smc_args *args);
 
-#define GIC_BASE                0x2c000000
-#define GICC_OFFSET             0x2000
-#define GICD_OFFSET             0x1000
+#endif /*TEE_ENTRY_H*/
 
-#define UART0_BASE		0x1c090000
-#define UART1_BASE		0x1c0a0000
-#define UART2_BASE		0x1c0b0000
-#define UART3_BASE		0x1c0c0000
-
-#define DDR0_BASE		0x80000000
-#define DDR0_SIZE		(510 * 1024 * 1024)
-
-#endif /*PLAT_H*/

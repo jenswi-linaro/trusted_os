@@ -187,3 +187,25 @@ vaddr_t mmu_map_device(paddr_t addr, size_t len)
 
 	return addr;
 }
+
+vaddr_t mmu_map_rwmem(paddr_t addr, size_t len, bool ns)
+{
+	paddr_t a;
+	bool inv_needed = false;
+
+	for (a = addr & ~MMU_SECTION_MASK; a < (addr + len);
+			a += MMU_SECTION_SIZE) {
+		uint32_t entry = create_rwmem_block(addr, ns);
+
+		if (mmu.l1_table[a >> MMU_SECTION_SHIFT] != entry) {
+			mmu.l1_table[a >> MMU_SECTION_SHIFT] =
+				create_device_block(a, ns);
+			inv_needed = true;
+		}
+	}
+	/* TODO only invalidate range */
+	if (inv_needed)
+		cache_tlb_invalidate();
+
+	return addr;
+}

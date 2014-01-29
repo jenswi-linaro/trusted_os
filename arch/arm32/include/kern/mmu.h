@@ -35,4 +35,17 @@ void mmu_init(uint32_t *l1_table, uintptr_t code_start, uintptr_t code_end,
 
 vaddr_t mmu_map_device(paddr_t addr, size_t len);
 
+vaddr_t mmu_map_rwmem(paddr_t addr, size_t len, bool ns);
+
+/* TODO update these with actual lookup */
+static inline paddr_t mmu_virt_to_phys(vaddr_t va)
+{
+	return va;
+}
+
+static inline vaddr_t mmu_phys_to_virt(paddr_t pa)
+{
+	return pa;
+}
+
 #endif /*MMU_H*/

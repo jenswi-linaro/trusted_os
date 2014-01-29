@@ -41,6 +41,8 @@
 #include <kern/thread.h>
 #include <kern/panic.h>
 
+#include <tee/entry.h>
+
 uint8_t stack_tmp[NUM_CPUS][STACK_TMP_SIZE]
 	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
 uint8_t stack_abt[NUM_CPUS][STACK_ABT_SIZE]
@@ -105,6 +107,12 @@ void main_init(uint32_t nsec_entry)
 		(void *)mmu_map_device(UART0_BASE, 0x1000));
 
 	/*
+	 * Map normal world DDR, TODO add an interface to let normal world
+	 * supply this.
+	 */
+	mmu_map_rwmem(DDR0_BASE, DDR0_SIZE, true /*ns*/);
+
+	/*
 	 * Zero BSS area. Note that globals that would normally would go
 	 * into BSS which are used before this has to be put into
 	 * .bss.prebss.* to avoid getting overwritten.
@@ -142,33 +150,16 @@ void main_init(uint32_t nsec_entry)
 	kprintf("Switching to normal world boot\n");
 }
 
-static void main_reentry(struct sm_arch32_params *params)
-{
-	kprintf("%s: got (%u, %u, %u, %u, %u, %u, %u, %u)\n", __func__,
-		params->arg0, params->arg1, params->arg2, params->arg3,
-		params->arg4, params->arg5, params->arg6, params->arg7);
-
-	params->arg0 += params->arg4;
-	params->arg1 += params->arg5;
-	params->arg2 += params->arg6;
-	params->arg3 += params->arg7;
-
-	kprintf("%s: returning (%u, %u, %u, %u, %u, %u, %u, %u)\n", __func__,
-		params->arg0, params->arg1, params->arg2, params->arg3,
-		params->arg4, params->arg5, params->arg6, params->arg7);
-}
-
-
 static void main_stdcall(struct thread_smc_args *args)
 {
 	kprintf("%s\n", __func__);
-	main_reentry((struct sm_arch32_params *)args);
+	tee_entry(args);
 }
 
 static void main_fastcall(struct thread_smc_args *args)
 {
 	kprintf("%s\n", __func__);
-	main_reentry((struct sm_arch32_params *)args);
+	tee_entry(args);
 }
 
 static void main_fiq(void)
