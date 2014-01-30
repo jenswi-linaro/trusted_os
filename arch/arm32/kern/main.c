@@ -94,10 +94,10 @@ void main_init(uint32_t nsec_entry)
 	resmem_init(begin_resmem, end_resmem);
 
 	/* Initialize user with physical address */
-	uart_init(UART0_BASE);
+	uart_init(UART1_BASE);
 
 	kprintf_init((kvprintf_putc)uart_putc,
-		(kprintf_flush_output)uart_flush_tx_fifo, (void *)UART0_BASE);
+		(kprintf_flush_output)uart_flush_tx_fifo, (void *)UART1_BASE);
 
 	kprintf("Trusted OS initializing\n");
 
@@ -106,7 +106,7 @@ void main_init(uint32_t nsec_entry)
 	/* Reinitialize with virtual address now that MMU is enabled */
 	kprintf_init((kvprintf_putc)uart_putc,
 		(kprintf_flush_output)uart_flush_tx_fifo,
-		(void *)mmu_map_device(UART0_BASE, 0x1000));
+		(void *)mmu_map_device(UART1_BASE, 0x1000));
 
 	/*
 	 * Map normal world DDR, TODO add an interface to let normal world
