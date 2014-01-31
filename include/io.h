@@ -27,16 +27,6 @@
 #ifndef IO_H
 #define IO_H
 
-#if 0
-#define write8(val, addr)  { *(volatile uint8_t *)(addr)  = val; }
-#define write16(val, addr) { *(volatile uint16_t *)(addr) = val; }
-#define write32(val, addr) { *(volatile uint32_t *)(addr) = val; }
-
-#define read8(addr)  (*(volatile uint8_t *)(addr))
-#define read16(addr) (*(volatile uint16_t *)(addr))
-#define read32(addr) (*(volatile uint32_t *)(addr))
-#else
-
 static inline void write8(uint8_t val, vaddr_t addr)
 {
 	*(volatile uint8_t *)addr = val;
@@ -66,7 +56,5 @@ static inline uint32_t read32(vaddr_t addr)
 {
 	return *(volatile uint32_t *)addr;
 }
-
-#endif
 
 #endif /*IO_H*/
