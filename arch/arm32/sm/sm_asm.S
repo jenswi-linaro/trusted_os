@@ -93,7 +93,7 @@ LOCAL_FUNC sm_smc_entry , :
 	clrex
 
 	/* Find out if we're doing an secure or non-secure entry */
-	mrc	p15, 0, r1, c1,c1, 0
+	read_scr r1
 	tst	r1, #SCR_NS
 	bne	.smc_nsec_entry
 
@@ -116,7 +116,7 @@ LOCAL_FUNC sm_smc_entry , :
 	 */
 	bl	sm_get_pre_fiq_ctx
 	ldm	r0!, {r1}
-	mcr	p15, 0, r1, c1,c1, 0	/* Restore SCR */
+	write_scr r1			/* Restore SCR */
 	ldm	r0!, {r4-r7}		/* Load saved r0-r3 */
 	add	r1, sp, #SMC_ENTRY_R0R3_OFFS /* Where pop below will read */
 	stm	r1, {r4-r7}		/* Write r0-r3 in stack */
@@ -156,16 +156,16 @@ LOCAL_FUNC sm_smc_entry , :
 	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 
 	/* Set NS bit in SCR */
-	mrc	p15, 0, r0, c1,c1, 0
+	read_scr r0
 	orr	r0, r0, #SCR_NS
-	mcr	p15, 0, r0, c1,c1, 0
+	write_scr r0
 
 	b	.smc_exit
 
 .smc_nsec_entry:
 	/* Clear NS bit in SCR */
 	bic	r1, r1, #SCR_NS
-	mcr	p15, 0, r1, c1,c1, 0
+	write_scr r1
 
 	/* Save non-secure context */
 	bl	sm_get_nsec_ctx
@@ -204,7 +204,7 @@ LOCAL_FUNC sm_fiq_entry , :
 
 	bl      sm_get_pre_fiq_ctx
 
-	mrc	p15, 0, r1, c1,c1, 0	/* Get SCR */
+	read_scr r1			/* Get SCR */
 	stm	r0!, {r1}		/* Save SCR */
 
 	add	r1, sp, #FIQ_ENTRY_R0R12_OFFS /* Where R0-R3 are on stack */
@@ -218,9 +218,9 @@ LOCAL_FUNC sm_fiq_entry , :
 	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
 
 	/* Clear NS bit in SCR */
-	mrc	p15, 0, r0, c1,c1, 0
+	read_scr r0
 	bic	r0, r0, #SCR_NS
-	mcr	p15, 0, r0, c1,c1, 0
+	write_scr r0
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
