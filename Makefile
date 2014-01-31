@@ -35,6 +35,6 @@ clean:
 .PHONY: cscope
 cscope:
 	@echo Creating cscope database
-	@rm -f cscope.*
-	@find $(PWD) -name "*.[chSs]" > cscope.files
-	@cscope -b -q
+	${Q}rm -f cscope.*
+	${Q}find $(PWD) -name "*.[chSs]" > cscope.files
+	${Q}cscope -b -q -k
