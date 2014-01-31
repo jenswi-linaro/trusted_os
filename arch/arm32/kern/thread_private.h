@@ -49,18 +49,22 @@ struct thread_ctx_regs {
 	uint32_t usr_spsr;
 	uint32_t usr_sp;
 	uint32_t usr_lr;
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
 	uint32_t irq_spsr;
 	uint32_t irq_sp;
 	uint32_t irq_lr;
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 	uint32_t svc_spsr;
 	uint32_t svc_sp;
 	uint32_t svc_lr;
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
 	uint32_t abt_spsr;
 	uint32_t abt_sp;
 	uint32_t abt_lr;
 	uint32_t und_spsr;
 	uint32_t und_sp;
 	uint32_t und_lr;
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 	uint32_t pc;
 	uint32_t cpsr;
 };
@@ -127,6 +131,9 @@ struct thread_ctx_regs *thread_get_ctx_regs(void);
 
 /* Sets sp for abort mode */
 void thread_set_abt_sp(vaddr_t sp);
+
+/* Sets sp for irq mode */
+void thread_set_irq_sp(vaddr_t sp);
 
 extern thread_call_handler_t thread_stdcall_handler_ptr;
 

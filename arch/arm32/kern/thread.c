@@ -31,6 +31,7 @@
 #include <arm32.h>
 #include <kern/mutex.h>
 #include <kern/misc.h>
+#include <kprintf.h>
 
 #include <assert.h>
 
@@ -120,7 +121,6 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	/* Enable thumb mode if it's a thumb instruction */
 	if (threads[n].regs.pc & 1)
 		threads[n].regs.cpsr |= CPSR_T;
-	threads[n].regs.cpsr |= CPSR_I; /* TODO remove this */
 	/* Reinitialize stack pointer */
 	threads[n].regs.svc_sp = threads[n].stack_va_end;
 	thread_copy_args_to_ctx(args, &threads[n].regs);
@@ -250,6 +250,10 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t va_start, size_t size)
 
 	case THREAD_ABT_STACK:
 		thread_set_abt_sp(va_start + size);
+		break;
+
+	case THREAD_IRQ_STACK:
+		thread_set_irq_sp(va_start + size);
 		break;
 
 	default:

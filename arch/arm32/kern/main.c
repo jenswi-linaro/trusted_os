@@ -47,6 +47,8 @@ uint8_t stack_tmp[NUM_CPUS][STACK_TMP_SIZE]
 	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
 uint8_t stack_abt[NUM_CPUS][STACK_ABT_SIZE]
 	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
+uint8_t stack_irq[NUM_CPUS][STACK_IRQ_SIZE]
+	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
 uint8_t stack_thread[NUM_THREADS][STACK_THREAD_SIZE]
 	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
 
@@ -127,6 +129,9 @@ void main_init(uint32_t nsec_entry)
 		panic();
 	if (!thread_init_stack(THREAD_ABT_STACK, (vaddr_t)stack_abt[0],
 			STACK_ABT_SIZE))
+		panic();
+	if (!thread_init_stack(THREAD_IRQ_STACK, (vaddr_t)stack_irq[0],
+			STACK_IRQ_SIZE))
 		panic();
 	for (n = 0; n < NUM_THREADS; n++) {
 		if (!thread_init_stack(0, (vaddr_t)stack_thread[n],

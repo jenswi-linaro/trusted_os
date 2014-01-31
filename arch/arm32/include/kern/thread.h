@@ -30,6 +30,7 @@
 #include <sys/types.h>
 
 #define THREAD_ID_0		0
+#define THREAD_IRQ_STACK	0xfffffffd
 #define THREAD_ABT_STACK	0xfffffffe
 #define THREAD_TMP_STACK	0xffffffff
 

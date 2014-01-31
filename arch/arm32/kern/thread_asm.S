@@ -26,6 +26,7 @@
  */
 #include <asm.S>
 #include <arm32.h>
+#include <arm32_macros.S>
 #include <sm/sm_defs.h>
 #include <kern/thread_defs.h>
 
@@ -36,6 +37,14 @@ FUNC thread_set_abt_sp , :
 	msr	cpsr, r1
 	bx	lr
 END_FUNC thread_set_abt_sp
+
+FUNC thread_set_irq_sp , :
+	mrs	r1, cpsr
+	cps	#CPSR_MODE_IRQ
+	mov	sp, r0
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_set_irq_sp
 
 FUNC thread_recv_smc_call , :
 	push	{r0-r7}
@@ -60,14 +69,17 @@ FUNC thread_resume , :
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr, r1
 
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
 	cps	#CPSR_MODE_IRQ
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr, r1
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	cps	#CPSR_MODE_SVC
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr, r1
 
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
 	cps	#CPSR_MODE_ABT
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr, r1
@@ -75,6 +87,7 @@ FUNC thread_resume , :
 	cps	#CPSR_MODE_UND
 	ldm	r12!, {r1, sp, lr}
 	msr	spsr, r1
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	cps	#CPSR_MODE_SVC
 	ldm	r12, {r1, r2}
@@ -113,21 +126,24 @@ LOCAL_FUNC thread_save_state , :
 	pop	{r1-r4}			/* r0-r3 pushed above */
 	stm	r0!, {r1-r4}
 	pop	{r1-r4}			/* r4-r7 pushed above */
-	stm	r0!, {r1-r2}
+	stm	r0!, {r1-r4}
 	stm	r0!, {r8-r11}
 
         cps     #CPSR_MODE_SYS
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
 
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
         cps     #CPSR_MODE_IRQ
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
         cps     #CPSR_MODE_SVC
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
 
+#ifdef THREAD_LOCAL_EXCEPTION_SPS
         cps     #CPSR_MODE_ABT
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
@@ -135,6 +151,7 @@ LOCAL_FUNC thread_save_state , :
         cps     #CPSR_MODE_UND
         mrs     r1, spsr
         stm     r0!, {r1, sp, lr}
+#endif /*THREAD_LOCAL_EXCEPTION_SPS*/
 
 	msr	cpsr, r6		/* Restore mode */
 
@@ -194,11 +211,11 @@ FUNC thread_rpc , :
 
 	mov	r0, #THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	mov	r1, r4			/* CPSR to restore */
-	ldr	r2, .thread_rpc_return
+	ldr	r2, =.thread_rpc_return
 	bl	thread_state_suspend
 	pop	{r0-r3}
 	smc	#0
-	b	. 			/* "Can't happen" */
+	b	thread_recv_smc_call
 
 .thread_rpc_return:
 	/*
@@ -226,15 +243,15 @@ LOCAL_FUNC thread_irq_handler , :
 
 	mov	r0, #0
 	mov	r1, r4			/* CPSR to restore */
-	ldr	r2, .thread_irq_return
+	ldr	r2, =.thread_irq_return
 	blx	thread_state_suspend
 
-	mov	r0, #SMC_RETURN_TRUSTED_OS_RPC
-	mov	r1, #SMC_RPC_REQUEST_IRQ
-	mov	r2, #0
+	mov	r0, #SMC_CALL_RETURN
+	mov	r1, #SMC_RETURN_TRUSTED_OS_RPC
+	mov	r2, #SMC_RPC_REQUEST_IRQ
 	mov	r3, #0
 	smc	#0
-	b	.			/* "Can't happen" */
+	b	thread_recv_smc_call
 
 .thread_irq_return:
 	/*
@@ -249,7 +266,7 @@ END_FUNC thread_irq_handler
 FUNC thread_init_vbar , :
 	/* Set vector (VBAR) */
 	ldr	r0, =thread_vect_table
-	mcr	p15, 0, r1, c12, c0, 0
+	write_vbar r0
 	bx	lr
 END_FUNC thread_init_vbar
 
