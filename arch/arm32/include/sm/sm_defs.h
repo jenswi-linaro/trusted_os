@@ -91,4 +91,15 @@
 /* Returned in r1 by Trusted OS functions if r0 = SMC_RETURN_TRUSTED_OS_RPC */
 #define SMC_RPC_REQUEST_IRQ		0x0
 
+#if 0
+/*
+ * sm_smc_entry uses 6 * 4 bytes
+ * sm_fiq_entry uses 12 * 4 bytes
+ */
+#define SM_STACK_SIZE	(12 * 4)
+#else
+/* TODO optimize sm_get_pre_fiq_ctx() */
+#define SM_STACK_SIZE	(24 * 4)
+#endif
+
 #endif /*SM_DEFS_H*/

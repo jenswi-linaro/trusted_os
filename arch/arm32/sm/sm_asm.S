@@ -115,13 +115,15 @@ LOCAL_FUNC sm_smc_entry , :
 	 * Restore the context saved when receiving the FIQ
 	 */
 	bl	sm_get_pre_fiq_ctx
-	ldm	r0!, {r1}
-	write_scr r1			/* Restore SCR */
-	ldm	r0!, {r4-r7}		/* Load saved r0-r3 */
+	ldm	r0!, {r2}
 	add	r1, sp, #SMC_ENTRY_R0R3_OFFS /* Where pop below will read */
+	push	{r2, r3}		/* Save SCR for below */
+	ldm	r0!, {r4-r7}		/* Load saved r0-r3 */
 	stm	r1, {r4-r7}		/* Write r0-r3 in stack */
 	ldm	r0!, {r4-r12}
 	bl	sm_restore_modes_regs
+	pop	{r2, r3}
+	write_scr r2			/* Restore SCR */
 	ldm	r0, {r2-r3} 		/* Load SPSR and LR from context */
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where rfefd will read */
 	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
@@ -196,43 +198,38 @@ END_FUNC sm_smc_entry
  * from FIQ.
  */
 LOCAL_FUNC sm_fiq_entry , :
+	/* FIQ has a +4 offset for lr compared to preferred return address */
+	sub	lr, lr, #4
 	srsdb	sp!, #CPSR_MODE_MON
-	push	{r0-r8, r12}
-/* Positions relative to stack pointer */
-#define FIQ_ENTRY_SRS_OFFS	(2 * 4 + FIQ_ENTRY_R0R12_OFFS)
-#define FIQ_ENTRY_R0R12_OFFS	(10 * 4)
+	push	{r4-r8, r12}
+	push	{r0-r3}
 
 	bl      sm_get_pre_fiq_ctx
 
 	read_scr r1			/* Get SCR */
 	stm	r0!, {r1}		/* Save SCR */
 
-	add	r1, sp, #FIQ_ENTRY_R0R12_OFFS /* Where R0-R3 are on stack */
-	ldm	r1!, {r4-r7}		/* Load saved R0-R3 */
+	/* Clear NS bit in SCR */
+	bic	r1, r1, #SCR_NS
+	write_scr r1
+
+	pop	{r4-r7}			/* Load saved R0-R3 */
 	stm	r0!, {r4-r7}		/* Save R0-R3 */
-	ldm	r1!, {r4-r8, r12}	/* Load saved R4-R8 and R12 */
+	pop	{r4-r8, r12}		/* Load saved R4-R8 and R12 */
 	stm	r0!, {r4-r12}
 	bl	sm_save_modes_regs
-	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
-	ldm	r1, {r2-r3}		/* Load SPSR and LR from stack */
+	ldm	sp, {r2-r3}		/* Load SPSR and LR from stack */
 	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
-
-	/* Clear NS bit in SCR */
-	read_scr r0
-	bic	r0, r0, #SCR_NS
-	write_scr r0
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
-	ldm	r0!, {r8-r11, lr}
+	ldm	r0!, {r8-r11}
 	bl	sm_restore_modes_regs
 	ldm	r0, {r2-r3}		/* Load SPSR and LR from context */
-	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where rfefd will read */
-	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
+	stm	sp, {r2-r3}		/* Store SPSR and LR in stack */
 
 	ldr	r0, =SMC_CALL_HANDLE_FIQ /* Post the FIQ to Trusted OS */
 
-	add	sp, sp, #FIQ_ENTRY_R0R12_OFFS /* Peal of what was pushed */
 	rfefd	sp!
 END_FUNC sm_fiq_entry
 

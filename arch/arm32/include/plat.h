@@ -27,9 +27,9 @@
 #ifndef PLAT_H
 #define PLAT_H
 
-#define STACK_TMP_SIZE		256	/* TODO minimize */
+#define STACK_TMP_SIZE		1024	/* TODO minimize */
 #define STACK_ABT_SIZE		1024
-#define STACK_IRQ_SIZE		256	/* TODO minimize */
+#define STACK_IRQ_SIZE		1024	/* TODO minimize */
 #define STACK_THREAD_SIZE	(8 * 1024)
 #define STACK_ALIGMENT		8
 
@@ -47,5 +47,7 @@
 
 #define DDR0_BASE		0x80000000
 #define DDR0_SIZE		(510 * 1024 * 1024)
+
+#define IT_UART1		38
 
 #endif /*PLAT_H*/

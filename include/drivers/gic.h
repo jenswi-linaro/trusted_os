@@ -30,5 +30,14 @@
 
 void gic_init(paddr_t gicc_base, paddr_t gicd_base);
 
+void gic_it_add(size_t it);
+void gic_it_set_cpu_mask(size_t it, uint8_t cpu_mask);
+void gic_it_set_prio(size_t it, uint8_t prio);
+void gic_it_enable(size_t it);
+void gic_it_disable(size_t it);
+
+uint32_t gic_read_iar(void);
+void gic_write_eoir(uint32_t eoir);
+
 #endif /*GIC_H*/
 

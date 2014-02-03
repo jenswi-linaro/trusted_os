@@ -35,5 +35,9 @@ void uart_putc(int ch, vaddr_t base);
 
 void uart_flush_tx_fifo(vaddr_t base);
 
+bool uart_have_rx_data(vaddr_t base);
+
+int uart_getchar(vaddr_t base);
+
 #endif /*UART_H*/
 

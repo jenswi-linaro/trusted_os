@@ -87,6 +87,7 @@
 #define UART_CR_OVSFACT		(1 << 3)
 #define UART_CR_UARTEN		(1 << 0)
 
+#define UART_IMSC_RXIM		(1 << 4)
 
 void uart_flush_tx_fifo(vaddr_t base)
 {
@@ -101,8 +102,10 @@ void uart_init(vaddr_t base)
 	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo enabled. */
 	write32(UART_LCRH_WLEN_8 | UART_LCRH_FEN, base + UART_LCRH_TX);
 
+	write32(UART_IMSC_RXIM, base + UART_IMSC);
+
 	/* Enable UART and TX */
-	write32(UART_CR_UARTEN | UART_CR_TXE, base + UART_CR);
+	write32(UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE, base + UART_CR);
 
 	uart_flush_tx_fifo(base);
 }
@@ -118,3 +121,16 @@ void uart_putc(int ch, vaddr_t base)
 	/* Send the character */
 	write32(ch, base + UART_DR);
 }
+
+bool uart_have_rx_data(vaddr_t base)
+{
+	return !(read32(base + UART_FR) & UART_FR_RXFE);
+}
+
+int uart_getchar(vaddr_t base)
+{
+	while (!uart_have_rx_data(base))
+		;
+	return read32(base + UART_DR) & 0xff;
+}
+

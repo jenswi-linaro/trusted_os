@@ -57,6 +57,7 @@ FUNC thread_recv_smc_call , :
 	 * do a normal "C" return.
 	 */
 	pop	{r0-r7}
+thread_issue_smc:
 	smc	#0
 	b	thread_recv_smc_call	/* Next entry to secure world is here */
 END_FUNC thread_recv_smc_call
@@ -185,8 +186,7 @@ FUNC thread_stdcall_entry , :
 	mov	r2, r5
 	mov	r3, r6
 	mov	r4, r7
-	smc	#0
-	b	thread_recv_smc_call	/* Next entry to secure world is here */
+	b	thread_issue_smc
 END_FUNC thread_stdcall_entry
 
 
@@ -214,8 +214,7 @@ FUNC thread_rpc , :
 	ldr	r2, =.thread_rpc_return
 	bl	thread_state_suspend
 	pop	{r0-r3}
-	smc	#0
-	b	thread_recv_smc_call
+	b	thread_issue_smc
 
 .thread_rpc_return:
 	/*
@@ -250,8 +249,7 @@ LOCAL_FUNC thread_irq_handler , :
 	mov	r1, #SMC_RETURN_TRUSTED_OS_RPC
 	mov	r2, #SMC_RPC_REQUEST_IRQ
 	mov	r3, #0
-	smc	#0
-	b	thread_recv_smc_call
+	b	thread_issue_smc
 
 .thread_irq_return:
 	/*

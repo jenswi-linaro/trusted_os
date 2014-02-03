@@ -121,9 +121,6 @@ void main_init(uint32_t nsec_entry)
 	 */
 	memset((void *)bss_start, 0, bss_end - bss_start);
 
-	gic_init(mmu_map_device(GIC_BASE + GICC_OFFSET, 0x1000),
-		mmu_map_device(GIC_BASE + GICD_OFFSET, 0x1000));
-
 	if (!thread_init_stack(THREAD_TMP_STACK, (vaddr_t)stack_tmp[0],
 			STACK_TMP_SIZE))
 		panic();
@@ -150,7 +147,15 @@ void main_init(uint32_t nsec_entry)
 	sm_init();
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
-	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_F | CPSR_I;
+	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
+
+	/* Initialize GIC */
+	gic_init(mmu_map_device(GIC_BASE + GICC_OFFSET, 0x1000),
+		mmu_map_device(GIC_BASE + GICD_OFFSET, 0x1000));
+	gic_it_add(IT_UART1);
+	gic_it_set_cpu_mask(IT_UART1, 0x1);
+	gic_it_set_prio(IT_UART1, 0xff);
+	gic_it_enable(IT_UART1);
 
 	kprintf("Switching to normal world boot\n");
 }
@@ -169,7 +174,18 @@ static void main_fastcall(struct thread_smc_args *args)
 
 static void main_fiq(void)
 {
+	uint32_t iar;
+
 	kprintf("%s\n", __func__);
+
+	iar = gic_read_iar();
+
+	while (uart_have_rx_data(UART1_BASE))
+		kprintf("got 0x%x\n", uart_getchar(UART1_BASE));
+
+	gic_write_eoir(iar);
+
+	kprintf("return from %s\n", __func__);
 }
 
 static void main_svc(struct thread_svc_regs *regs)
