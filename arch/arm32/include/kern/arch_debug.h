@@ -24,31 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef KERN_ARCH_DEBUG_H
+#define KERN_ARCH_DEBUG_H
 
-#include <sm/sm.h>
+void check_canaries(void);
 
-#include <arm32.h>
-
-#include <plat.h>
+#endif /*KERN_ARCH_DEBUG_H*/
 
 
-static struct sm_nsec_ctx sm_nsec_ctx[NUM_CPUS];
-static struct sm_sec_ctx sm_sec_ctx[NUM_CPUS];
-static struct sm_pre_fiq_ctx sm_pre_fiq_ctx[NUM_CPUS];
-
-#define CPU_ID()	(read_mpidr() & MPIDR_CPU_MASK)
-
-struct sm_nsec_ctx *sm_get_nsec_ctx(void)
-{
-	return &sm_nsec_ctx[CPU_ID()];
-}
-
-struct sm_sec_ctx *sm_get_sec_ctx(void)
-{
-	return &sm_sec_ctx[CPU_ID()];
-}
-
-struct sm_pre_fiq_ctx *sm_get_pre_fiq_ctx(void)
-{
-	return &sm_pre_fiq_ctx[CPU_ID()];
-}

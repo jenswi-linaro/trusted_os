@@ -31,6 +31,7 @@
 #include <arm32.h>
 #include <kern/mutex.h>
 #include <kern/misc.h>
+#include <kern/arch_debug.h>
 #include <kprintf.h>
 
 #include <assert.h>
@@ -173,6 +174,8 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 void thread_handle_smc_call(struct thread_smc_args *args)
 {
+	check_canaries();
+
 	if (SMC_IS_FAST_CALL(args->smc_func_id)) {
 		if (args->smc_func_id == SMC_CALL_HANDLE_FIQ) {
 			thread_fiq_handler_ptr();
@@ -220,6 +223,8 @@ void thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 
 	assert(l->curr_thread != -1);
 
+	check_canaries();
+
 	lock_global();
 
 	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
@@ -235,25 +240,24 @@ void thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 }
 
 
-bool thread_init_stack(uint32_t thread_id, vaddr_t va_start, size_t size)
+bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 {
 	switch (thread_id) {
 	case THREAD_TMP_STACK:
 		{
 			struct thread_core_local *l = get_core_local();
 
-			l->tmp_stack_va_start = va_start;
-			l->tmp_stack_va_end = va_start + size;
+			l->tmp_stack_va_end = sp;
 			l->curr_thread = -1;
 		}
 		break;
 
 	case THREAD_ABT_STACK:
-		thread_set_abt_sp(va_start + size);
+		thread_set_abt_sp(sp);
 		break;
 
 	case THREAD_IRQ_STACK:
-		thread_set_irq_sp(va_start + size);
+		thread_set_irq_sp(sp);
 		break;
 
 	default:
@@ -262,8 +266,7 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t va_start, size_t size)
 		if (threads[thread_id].state != THREAD_STATE_FREE)
 			return false;
 
-		threads[thread_id].stack_va_start = va_start;
-		threads[thread_id].stack_va_end = va_start + size;
+		threads[thread_id].stack_va_end = sp;
 	}
 
 	return true;

@@ -243,10 +243,9 @@ LOCAL_FUNC sm_vect_table , :
 	b	sm_fiq_entry	/* FIQ				*/
 END_FUNC sm_vect_table
 
-/* void sm_init(); */
+/* void sm_init(vaddr_t stack_pointer); */
 FUNC sm_init , :
 	push	{r0, lr}
-	bl	sm_get_sp	/* Get the stack pointer */
 
 	/* Set monitor stack */
 	mrs	r1, cpsr

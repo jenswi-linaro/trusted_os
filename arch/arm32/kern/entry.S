@@ -54,11 +54,9 @@ LOCAL_FUNC reset , :
 	mov	r4, lr
 	read_mpidr r0
 	bl	get_core_pos
-	ldr	r1, =stack_tmp
-	add	r1, #STACK_TMP_SIZE
-	mov	r2, #STACK_TMP_SIZE
-	mul	r2, r2, r0
-	add	sp, r1, r2
+	lsl	r0, #2
+	ldr	r1, =stack_tmp_top
+	ldr	sp, [r1, r0]
 
 #if 0
 	bl	dcache_clean_inv

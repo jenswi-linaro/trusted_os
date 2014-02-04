@@ -33,9 +33,12 @@
 #include <drivers/uart.h>
 #include <kprintf.h>
 #include <sm/sm.h>
+#include <sm/sm_defs.h>
 
 #include <kern/mmu.h>
+#include <kern/kern.h>
 #include <kern/resmem.h>
+#include <kern/arch_debug.h>
 
 #include <arm32.h>
 #include <kern/thread.h>
@@ -43,14 +46,52 @@
 
 #include <tee/entry.h>
 
-uint8_t stack_tmp[NUM_CPUS][STACK_TMP_SIZE]
-	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
-uint8_t stack_abt[NUM_CPUS][STACK_ABT_SIZE]
-	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
-uint8_t stack_irq[NUM_CPUS][STACK_IRQ_SIZE]
-	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
-uint8_t stack_thread[NUM_THREADS][STACK_THREAD_SIZE]
-	__attribute__((section(".bss.prebss.stack"), aligned(STACK_ALIGMENT)));
+#include <assert.h>
+
+#ifdef WITH_STACK_CANARIES
+#define STACK_CANARY_SIZE	(4 * sizeof(uint32_t))
+#define START_CANARY_VALUE	0xdededede
+#define END_CANARY_VALUE	0xabababab
+#define GET_START_CANARY(name, stack_num) name[stack_num][0]
+#define GET_END_CANARY(name, stack_num) \
+	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
+#else
+#define STACK_CANARY_SIZE	0
+#endif
+
+#define DECLARE_STACK(name, num_stacks, stack_size) \
+	static uint32_t name[num_stacks][(stack_size + STACK_CANARY_SIZE) / \
+					 sizeof(uint32_t)] \
+		__attribute__((section(".bss.prebss.stack"), \
+			       aligned(STACK_ALIGMENT)))
+
+#define GET_STACK(stack) \
+	((vaddr_t)(stack) + sizeof(stack) - STACK_CANARY_SIZE / 2)
+
+
+DECLARE_STACK(stack_tmp,	NUM_CPUS,	STACK_TMP_SIZE);
+DECLARE_STACK(stack_abt,	NUM_CPUS,	STACK_ABT_SIZE);
+DECLARE_STACK(stack_irq,	NUM_CPUS,	STACK_IRQ_SIZE);
+DECLARE_STACK(stack_sm,		NUM_CPUS,	SM_STACK_SIZE);
+DECLARE_STACK(stack_thread,	NUM_THREADS,	STACK_THREAD_SIZE);
+
+const vaddr_t stack_tmp_top[NUM_CPUS] = {
+	GET_STACK(stack_tmp[0]),
+#if NUM_CPUS > 1
+	GET_STACK(stack_tmp[1]),
+#endif
+#if NUM_CPUS > 2
+	GET_STACK(stack_tmp[2]),
+#endif
+#if NUM_CPUS > 3
+	GET_STACK(stack_tmp[3]),
+#endif
+#if NUM_CPUS > 4
+#error "Top of tmp stacks aren't defined for more than 4 CPUS"
+#endif
+};
+
+static bool inited;
 
 uint32_t mmu_l1_table[MMU_L1_NUM_ENTRIES]
 	__attribute__((section(".bss.prebss.mmu"), aligned(MMU_L1_ALIGNMENT)));
@@ -69,6 +110,50 @@ static void main_fiq(void);
 static void main_svc(struct thread_svc_regs *regs);
 static void main_abort(uint32_t abort_type,
 	struct thread_abort_regs *regs);
+
+
+
+static void init_canaries(void)
+{
+	size_t n;
+#define INIT_CANARY(name)						\
+	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
+		uint32_t *start_canary = &GET_START_CANARY(name, n);	\
+		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
+									\
+		*start_canary = START_CANARY_VALUE;			\
+		*end_canary = END_CANARY_VALUE;				\
+		kprintf("#Stack canaries for %s[%zu] with top at %p\n", \
+			#name, n, (void *)(end_canary - 1));		\
+		kprintf("#watch inited && *%p\n", (void *)start_canary);\
+		kprintf("watch inited && *%p\n", (void *)end_canary);	\
+	}
+
+	INIT_CANARY(stack_tmp);
+	INIT_CANARY(stack_abt);
+	INIT_CANARY(stack_irq);
+	INIT_CANARY(stack_sm);
+	INIT_CANARY(stack_thread);
+}
+
+void check_canaries(void)
+{
+#ifdef WITH_STACK_CANARIES
+	size_t n;
+
+#define ASSERT_STACK_CANARIES(name)					\
+	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
+		assert(GET_START_CANARY(name, n) == START_CANARY_VALUE);\
+		assert(GET_END_CANARY(name, n) == END_CANARY_VALUE);	\
+	} while (0)
+
+	ASSERT_STACK_CANARIES(stack_tmp);
+	ASSERT_STACK_CANARIES(stack_abt);
+	ASSERT_STACK_CANARIES(stack_irq);
+	ASSERT_STACK_CANARIES(stack_sm);
+	ASSERT_STACK_CANARIES(stack_thread);
+#endif /*WITH_STACK_CANARIES*/
+}
 
 static const struct thread_handlers handlers = {
 	.stdcall = main_stdcall,
@@ -121,18 +206,17 @@ void main_init(uint32_t nsec_entry)
 	 */
 	memset((void *)bss_start, 0, bss_end - bss_start);
 
-	if (!thread_init_stack(THREAD_TMP_STACK, (vaddr_t)stack_tmp[0],
-			STACK_TMP_SIZE))
+	/* Initialize canries around the stacks */
+	init_canaries();
+
+	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[0])))
 		panic();
-	if (!thread_init_stack(THREAD_ABT_STACK, (vaddr_t)stack_abt[0],
-			STACK_ABT_SIZE))
+	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[0])))
 		panic();
-	if (!thread_init_stack(THREAD_IRQ_STACK, (vaddr_t)stack_irq[0],
-			STACK_IRQ_SIZE))
+	if (!thread_init_stack(THREAD_IRQ_STACK, GET_STACK(stack_irq[0])))
 		panic();
 	for (n = 0; n < NUM_THREADS; n++) {
-		if (!thread_init_stack(0, (vaddr_t)stack_thread[n],
-				STACK_THREAD_SIZE))
+		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
 			panic();
 	}
 	/*
@@ -144,7 +228,7 @@ void main_init(uint32_t nsec_entry)
 	thread_init_handlers(&handlers);
 
 	/* Initialize secure monitor */
-	sm_init();
+	sm_init(GET_STACK(stack_sm[0]));
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
@@ -157,6 +241,7 @@ void main_init(uint32_t nsec_entry)
 	gic_it_set_prio(IT_UART1, 0xff);
 	gic_it_enable(IT_UART1);
 
+	inited = true;
 	kprintf("Switching to normal world boot\n");
 }
 

@@ -27,7 +27,7 @@
 #ifndef SM_H
 #define SM_H
 
-#include <stdint.h>
+#include <sys/types.h>
 
 struct sm_nsec_ctx {
 	uint32_t r4;
@@ -139,6 +139,6 @@ void *sm_get_sp(void);
 /*
  * Initializes secure monitor, must be called by each CPU
  */
-void sm_init(void);
+void sm_init(vaddr_t stack_pointer);
 
 #endif /*SM_H*/

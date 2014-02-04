@@ -71,7 +71,6 @@ struct thread_ctx_regs {
 
 struct thread_ctx {
 	enum thread_state state;
-	vaddr_t stack_va_start;
 	vaddr_t stack_va_end;
 	void *tsd;
 	thread_tsd_free_t tsd_free;
@@ -81,7 +80,6 @@ struct thread_ctx {
 };
 
 struct thread_core_local {
-	vaddr_t tmp_stack_va_start;
 	vaddr_t tmp_stack_va_end;
 	int curr_thread;
 };
