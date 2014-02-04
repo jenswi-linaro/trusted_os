@@ -3,3 +3,4 @@
 *.elf
 *.dmp
 cscope.*
+out/
