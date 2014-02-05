@@ -32,8 +32,7 @@
 LOCAL_FUNC sm_save_modes_regs , :
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
-	mrs	r1, spsr
-	stm	r0!, {r1, sp, lr}
+	stm	r0!, {sp, lr}
 
 	cps	#CPSR_MODE_IRQ
 	mrs	r1, spsr
@@ -59,8 +58,7 @@ END_FUNC sm_save_modes_regs
 LOCAL_FUNC sm_restore_modes_regs , :
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
-	ldm	r0!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r0!, {sp, lr}
 
 	cps	#CPSR_MODE_IRQ
 	ldm	r0!, {r1, sp, lr}
