@@ -245,10 +245,15 @@ LOCAL_FUNC thread_irq_handler , :
 	ldr	r2, =.thread_irq_return
 	blx	thread_state_suspend
 
+	/*
+	 * r1-r4 will be shifted to r0-r3 in the monitor when returning
+	 * to normal world.
+	 */
 	mov	r0, #SMC_CALL_RETURN
 	mov	r1, #SMC_RETURN_TRUSTED_OS_RPC
 	mov	r2, #SMC_RPC_REQUEST_IRQ
 	mov	r3, #0
+	mov	r4, #0
 	b	thread_issue_smc
 
 .thread_irq_return:
