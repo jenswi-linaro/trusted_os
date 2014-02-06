@@ -1,0 +1,21 @@
+msc {
+	hscale = "1.5", wordwraparcs = on;
+
+	a [label="Normal world"], b [label="Secure Monitor"],
+	c [label="Trusted OS entry"], d [label="Trusted OS"];
+
+
+	||| ;
+	--- [ label = "Running in either non-secure or secure world" ];
+	... ;
+	--- [ label = "IRQ and FIQ masked,\nFIQ received" ];
+	b=>b [ label = "Save current context as \"pre FIQ context\"" ];
+	b=>b [ label = "Restore last secure world context" ];
+	b>>c [ label = "eret: FIQ" ];
+	c=>c [ label = "process FIQ" ];
+	c=>b [ label = "smc: return from FIQ" ];
+	b=>b [ label = "restore context from \"pre FIQ context\"" ];
+	b>>b [ label = "eret: return to either Normal world or Trusted OS" ];
+	--- [ label = "IRQ and FIQ unmasked" ];
+	... ;
+}
