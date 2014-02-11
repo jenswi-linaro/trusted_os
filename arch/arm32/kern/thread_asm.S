@@ -64,7 +64,7 @@ END_FUNC thread_recv_smc_call
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
-	add	r12, r0, #(12 * 4)	/* Do the general purpose regs later */
+	add	r12, r0, #(13 * 4)	/* Do the general purpose regs later */
 
 	cps	#CPSR_MODE_SYS
 	ldm	r12!, {r1, sp, lr}
@@ -94,7 +94,7 @@ FUNC thread_resume , :
 	ldm	r12, {r1, r2}
 	push	{r1, r2}
 
-	ldm	r0, {r0-r11}
+	ldm	r0, {r0-r12}
 
 
 	/* Restore CPSR and jump to the intstruction to resume at */
@@ -106,7 +106,8 @@ END_FUNC thread_resume
  * CPSR.
  */
 LOCAL_FUNC thread_save_state , :
-	push	{r12, lr}
+	push	{lr}
+	push	{r12}
 	/*
 	 * Uses stack for temporary storage, while storing needed
 	 * context in the thread context struct.
@@ -129,6 +130,9 @@ LOCAL_FUNC thread_save_state , :
 	pop	{r1-r4}			/* r4-r7 pushed above */
 	stm	r0!, {r1-r4}
 	stm	r0!, {r8-r11}
+
+	pop	{r12}			/* r12 pushed above */
+	stm	r0!, {r12}
 
         cps     #CPSR_MODE_SYS
         mrs     r1, spsr
@@ -157,7 +161,7 @@ LOCAL_FUNC thread_save_state , :
 	msr	cpsr, r6		/* Restore mode */
 
 	mov	r0, r5			/* Return original CPSR */
-	pop	{r12, pc}
+	pop	{pc}
 END_FUNC thread_save_state
 
 FUNC thread_stdcall_entry , :
@@ -168,8 +172,9 @@ FUNC thread_stdcall_entry , :
 	ldr	lr, [lr]
 	blx	lr
 	/*
-	 * Load the returned r0-r3 into preserved registers and skip
-	 * the "returned" r4-r7 since they will not be returned.
+	 * Load the returned r0-r3 into preserved registers and skip the
+	 * "returned" r4-r7 since they will not be returned to normal
+	 * world.
 	 */
 	pop	{r4-r7}
 	add	sp, #(4 * 4)
@@ -227,23 +232,30 @@ FUNC thread_rpc , :
 END_FUNC thread_rpc
 
 LOCAL_FUNC thread_irq_handler , :
+	/*
+	 * IRQ mode is set up to use tmp stack so FIQ has to be
+	 * disabled before touching the stack. We can also assign
+	 * SVC sp from IRQ sp to get SVC mode into the state we
+	 * need when doing the SMC below.
+	 */
+	cpsid	f			/* Disable FIQ also */
 	sub	lr, lr, #4
-	push	{ip, lr}
+	push	{lr}
 
 	bl	thread_save_state
-	mov	r4, r0			/* Save original CPSR */
-
-	/*
- 	 * Switch to temporary stack and SVC mode. Save CPSR to resume into.
-	 */
-	bl	thread_get_tmp_sp
-	cps	#CPSR_MODE_SVC		/* Change to SVC mode */
-	mov	sp, r0			/* Switch to tmp stack */
 
 	mov	r0, #0
-	mov	r1, r4			/* CPSR to restore */
-	ldr	r2, =.thread_irq_return
+	mrs	r1, spsr
+	pop	{r2}
 	blx	thread_state_suspend
+
+	/*
+	 * Switch to SVC mode and copy current stack pointer as it already
+	 * is the tmp stack.
+	 */
+	mov	r0, sp
+	cps	#CPSR_MODE_SVC
+	mov	sp, r0
 
 	/*
 	 * r1-r4 will be shifted to r0-r3 in the monitor when returning
@@ -255,15 +267,6 @@ LOCAL_FUNC thread_irq_handler , :
 	mov	r3, #0
 	mov	r4, #0
 	b	thread_issue_smc
-
-.thread_irq_return:
-	/*
-	 * Jumps here from thread_resume above when RPC has returned. The
-	 * IRQ and FIQ bits are still set, but will be restored from SPSR
-	 * when this function returns.
-	 */
-	pop	{ip, lr}
-	movs	pc, lr
 END_FUNC thread_irq_handler
 
 FUNC thread_init_vbar , :

@@ -71,7 +71,6 @@
 
 DECLARE_STACK(stack_tmp,	NUM_CPUS,	STACK_TMP_SIZE);
 DECLARE_STACK(stack_abt,	NUM_CPUS,	STACK_ABT_SIZE);
-DECLARE_STACK(stack_irq,	NUM_CPUS,	STACK_IRQ_SIZE);
 DECLARE_STACK(stack_sm,		NUM_CPUS,	SM_STACK_SIZE);
 DECLARE_STACK(stack_thread,	NUM_THREADS,	STACK_THREAD_SIZE);
 
@@ -131,7 +130,6 @@ static void init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-	INIT_CANARY(stack_irq);
 	INIT_CANARY(stack_sm);
 	INIT_CANARY(stack_thread);
 }
@@ -149,7 +147,6 @@ void check_canaries(void)
 
 	ASSERT_STACK_CANARIES(stack_tmp);
 	ASSERT_STACK_CANARIES(stack_abt);
-	ASSERT_STACK_CANARIES(stack_irq);
 	ASSERT_STACK_CANARIES(stack_sm);
 	ASSERT_STACK_CANARIES(stack_thread);
 #endif /*WITH_STACK_CANARIES*/
@@ -212,8 +209,6 @@ void main_init(uint32_t nsec_entry)
 	if (!thread_init_stack(THREAD_TMP_STACK, GET_STACK(stack_tmp[0])))
 		panic();
 	if (!thread_init_stack(THREAD_ABT_STACK, GET_STACK(stack_abt[0])))
-		panic();
-	if (!thread_init_stack(THREAD_IRQ_STACK, GET_STACK(stack_irq[0])))
 		panic();
 	for (n = 0; n < NUM_THREADS; n++) {
 		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))

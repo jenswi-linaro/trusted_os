@@ -249,15 +249,13 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 
 			l->tmp_stack_va_end = sp;
 			l->curr_thread = -1;
+
+			thread_set_irq_sp(sp);
 		}
 		break;
 
 	case THREAD_ABT_STACK:
 		thread_set_abt_sp(sp);
-		break;
-
-	case THREAD_IRQ_STACK:
-		thread_set_irq_sp(sp);
 		break;
 
 	default:

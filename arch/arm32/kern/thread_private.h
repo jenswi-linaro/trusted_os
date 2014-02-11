@@ -46,6 +46,7 @@ struct thread_ctx_regs {
 	uint32_t r9;
 	uint32_t r10;
 	uint32_t r11;
+	uint32_t r12;
 	uint32_t usr_spsr;
 	uint32_t usr_sp;
 	uint32_t usr_lr;

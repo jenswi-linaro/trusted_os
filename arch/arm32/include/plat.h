@@ -29,7 +29,6 @@
 
 #define STACK_TMP_SIZE		1024	/* TODO minimize */
 #define STACK_ABT_SIZE		1024
-#define STACK_IRQ_SIZE		1024	/* TODO minimize */
 #define STACK_THREAD_SIZE	(8 * 1024)
 #define STACK_ALIGMENT		8
 
