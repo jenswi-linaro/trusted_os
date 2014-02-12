@@ -30,25 +30,24 @@
 #include <arm32.h>
 
 #include <plat.h>
+#include <kern/misc.h>
 
 
 static struct sm_nsec_ctx sm_nsec_ctx[NUM_CPUS];
 static struct sm_sec_ctx sm_sec_ctx[NUM_CPUS];
 static struct sm_pre_fiq_ctx sm_pre_fiq_ctx[NUM_CPUS];
 
-#define CPU_ID()	(read_mpidr() & MPIDR_CPU_MASK)
-
 struct sm_nsec_ctx *sm_get_nsec_ctx(void)
 {
-	return &sm_nsec_ctx[CPU_ID()];
+	return &sm_nsec_ctx[get_core_pos()];
 }
 
 struct sm_sec_ctx *sm_get_sec_ctx(void)
 {
-	return &sm_sec_ctx[CPU_ID()];
+	return &sm_sec_ctx[get_core_pos()];
 }
 
 struct sm_pre_fiq_ctx *sm_get_pre_fiq_ctx(void)
 {
-	return &sm_pre_fiq_ctx[CPU_ID()];
+	return &sm_pre_fiq_ctx[get_core_pos()];
 }

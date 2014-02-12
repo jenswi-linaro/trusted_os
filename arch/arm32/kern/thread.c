@@ -61,7 +61,7 @@ static void unlock_global(void)
 static struct thread_core_local *get_core_local(void)
 {
 	struct thread_core_local *l;
-	uint32_t cpu_id = get_core_pos(read_mpidr());
+	uint32_t cpu_id = get_core_pos();
 
 	assert(cpu_id < NUM_CPUS);
 	l = &thread_core_local[cpu_id];

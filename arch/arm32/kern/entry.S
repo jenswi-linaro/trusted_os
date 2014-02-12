@@ -52,7 +52,6 @@ LOCAL_FUNC reset , :
 	write_vbar r0
 
 	mov	r4, lr
-	read_mpidr r0
 	bl	get_core_pos
 	lsl	r0, #2
 	ldr	r1, =stack_tmp_top

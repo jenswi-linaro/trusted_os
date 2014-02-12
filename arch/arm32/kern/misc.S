@@ -26,9 +26,11 @@
  */
 #include <asm.S>
 #include <arm32.h>
+#include <arm32_macros.S>
 #include <plat.h>
 
 FUNC get_core_pos , :
+	read_mpidr r0
 	/* Calculate CorePos = (ClusterId * 4) + CoreId */
 	and	r1, r0, #MPIDR_CPU_MASK
 	and	r0, r0, #MPIDR_CLUSTER_MASK

@@ -29,7 +29,7 @@
 
 #include <stddef.h>
 
-size_t get_core_pos(uint32_t mpidr);
+size_t get_core_pos(void);
 
 #endif /*KERN_MISC_H*/
 
