@@ -11,10 +11,11 @@ PLATFORM_CPPFLAGS	+= -DWITH_STACK_CANARIES=1
 
 DEBUG		?= 1
 ifeq ($(DEBUG),1)
-PLATFORM_CFLAGS += -O0 -g -g3
-PLATFORM_SFLAGS += -g -g3
+PLATFORM_CFLAGS += -O0
 else
 PLATFORM_CFLAGS += -Os
 endif
+PLATFORM_CFLAGS += -g -g3
+PLATFORM_SFLAGS += -g -g3
 
 SUBDIRS += $(addprefix $(ARCH_DIR)/, kern libc sm tee)
