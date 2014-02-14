@@ -27,9 +27,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <plat.h>
 #include <arm32.h>
 #include <kern/mmu.h>
 #include <kern/cache.h>
+
 
 #define MMU_L1_TYPE_WBWA \
 	((0x1 << MMU_L1_TEX_SHIFT) | MMU_L1_B | MMU_L1_C)
@@ -135,7 +137,7 @@ void mmu_init(uint32_t *l1_table, uintptr_t code_start, uintptr_t code_end,
 
 	mmu.l1_table = l1_table;
 
-	for (n = 0; n < 4096; n++)
+	for (n = 0; n < MMU_L1_NUM_ENTRIES; n++)
 		mmu.l1_table[n] = 0;
 
 	/* Idenity map code */
@@ -154,6 +156,10 @@ void mmu_init(uint32_t *l1_table, uintptr_t code_start, uintptr_t code_end,
 
 	write_ttbr0((uint32_t)l1_table | MMU_TTBR_SHARED_WBWA);
 
+	/*
+	 * Set as client to domain0, all other disabled. MMU entries mapped
+	 * will be in domain0.
+	 */
 	write_dacr(1);
 
 	sctlr = read_sctlr();
