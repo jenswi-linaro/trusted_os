@@ -134,6 +134,9 @@ void thread_set_abt_sp(vaddr_t sp);
 /* Sets sp for irq mode */
 void thread_set_irq_sp(vaddr_t sp);
 
+/* Sets sp for fiq mode */
+void thread_set_fiq_sp(vaddr_t sp);
+
 extern thread_call_handler_t thread_stdcall_handler_ptr;
 
 #endif /*THREAD_PRIVATE_H*/

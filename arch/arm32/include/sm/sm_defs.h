@@ -59,21 +59,9 @@
 #define SMC_OWNER_MONITOR	63
 
 
-/* From Trusted OS to monitor, return from last call */
-#define	SMC_CALL_RETURN		SMC_CALL_VAL(SMC_32, SMC_FAST_CALL, \
-					     SMC_OWNER_MONITOR, 0)
 /* From monitor to Trusted OS, handle FIQ. */
 #define	SMC_CALL_HANDLE_FIQ	SMC_CALL_VAL(SMC_32, SMC_FAST_CALL, \
 					     SMC_OWNER_MONITOR, 1)
-/* From Trusted OS to monitor, return from FIQ. */
-#define	SMC_CALL_RETURN_FROM_FIQ SMC_CALL_VAL(SMC_32, SMC_FAST_CALL, \
-					     SMC_OWNER_MONITOR, 2)
-/* From Trusted OS to monitor, request RPC (or IRQ). */
-#define	SMC_CALL_REQUEST_RPC	SMC_CALL_VAL(SMC_32, SMC_FAST_CALL, \
-					     SMC_OWNER_MONITOR, 3)
-/* From monitor to Trusted OS, unknown monitor call from Trusted OS */
-#define	SMC_CALL_UNKNOWN	SMC_CALL_VAL(SMC_32, SMC_FAST_CALL, \
-					     SMC_OWNER_MONITOR, 4)
 
 /* From non-secure world to Trusted OS, resume from RPC (or IRQ) */
 #define	SMC_CALL_RETURN_FROM_RPC SMC_CALL_VAL(SMC_32, SMC_STD_CALL, \

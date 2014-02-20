@@ -65,7 +65,10 @@ LOCAL_FUNC reset , :
 	mov	r0, r4
 	bl	main_init
 
-	ldr	r0, =SMC_CALL_RETURN
+	mov	r0, #0
+	mov	r1, #0
+	mov	r2, #0
+	mov	r3, #0
 	smc	#0
 	b	thread_recv_smc_call
 END_FUNC reset

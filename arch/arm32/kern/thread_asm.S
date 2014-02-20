@@ -46,7 +46,36 @@ FUNC thread_set_irq_sp , :
 	bx	lr
 END_FUNC thread_set_irq_sp
 
+
+FUNC thread_set_fiq_sp , :
+	mrs	r1, cpsr
+	cps	#CPSR_MODE_FIQ
+	mov	sp, r0
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_set_irq_sp
+
 FUNC thread_recv_smc_call , :
+	ldr	r9, =SMC_CALL_HANDLE_FIQ
+	cmp	r0, r9
+	bne	.recv_smc
+	/*
+	 * FIQ raised while in non-secure world, unmask FIQ temporarily to
+	 * receive the FIQ in as it's normally recieved when secure world
+	 * is active when FIQ is raised.
+	 */
+	cpsie	f
+	nop
+	nop
+	nop
+	nop		/* We should have received IT by now... */
+	cpsid	f
+	mov	r0, r1
+	mov	r1, r2
+	mov	r2, r3
+	mov	r3, r4
+	b	thread_issue_smc
+.recv_smc:
 	push	{r0-r7}
 	mov	r0, sp
 	bl	thread_handle_smc_call
@@ -186,11 +215,10 @@ FUNC thread_stdcall_entry , :
 
 	bl	thread_state_free
 
-	mov	r0, #SMC_CALL_RETURN
-	mov	r1, r4
-	mov	r2, r5
-	mov	r3, r6
-	mov	r4, r7
+	mov	r0, r4
+	mov	r1, r5
+	mov	r2, r6
+	mov	r3, r7
 	b	thread_issue_smc
 END_FUNC thread_stdcall_entry
 
@@ -231,6 +259,18 @@ FUNC thread_rpc , :
 	bx	lr
 END_FUNC thread_rpc
 
+LOCAL_FUNC thread_fiq_handler , :
+	/* FIQ has a +4 offset for lr compared to preferred return address */
+	sub     lr, lr, #4
+	push	{r0-r12, lr}
+	bl	check_canaries
+	ldr	lr, =thread_fiq_handler_ptr
+	ldr	lr, [lr]
+	blx	lr
+	pop	{r0-r12, lr}
+	movs	pc, lr
+END_FUNC thread_fiq_handler
+
 LOCAL_FUNC thread_irq_handler , :
 	/*
 	 * IRQ mode is set up to use tmp stack so FIQ has to be
@@ -261,11 +301,10 @@ LOCAL_FUNC thread_irq_handler , :
 	 * r1-r4 will be shifted to r0-r3 in the monitor when returning
 	 * to normal world.
 	 */
-	mov	r0, #SMC_CALL_RETURN
-	mov	r1, #SMC_RETURN_TRUSTED_OS_RPC
-	mov	r2, #SMC_RPC_REQUEST_IRQ
+	mov	r0, #SMC_RETURN_TRUSTED_OS_RPC
+	mov	r1, #SMC_RPC_REQUEST_IRQ
+	mov	r2, #0
 	mov	r3, #0
-	mov	r4, #0
 	b	thread_issue_smc
 END_FUNC thread_irq_handler
 
@@ -342,5 +381,5 @@ LOCAL_FUNC thread_vect_table , :
 	b	thread_dabort_handler	/* Data abort			*/
 	b	.			/* Reserved			*/
 	b	thread_irq_handler	/* IRQ				*/
-	b	.			/* FIQ				*/
+	b	thread_fiq_handler	/* FIQ				*/
 END_FUNC thread_vect_table

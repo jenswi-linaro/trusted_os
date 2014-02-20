@@ -35,7 +35,6 @@
 
 static struct sm_nsec_ctx sm_nsec_ctx[NUM_CPUS];
 static struct sm_sec_ctx sm_sec_ctx[NUM_CPUS];
-static struct sm_pre_fiq_ctx sm_pre_fiq_ctx[NUM_CPUS];
 
 struct sm_nsec_ctx *sm_get_nsec_ctx(void)
 {
@@ -45,9 +44,4 @@ struct sm_nsec_ctx *sm_get_nsec_ctx(void)
 struct sm_sec_ctx *sm_get_sec_ctx(void)
 {
 	return &sm_sec_ctx[get_core_pos()];
-}
-
-struct sm_pre_fiq_ctx *sm_get_pre_fiq_ctx(void)
-{
-	return &sm_pre_fiq_ctx[get_core_pos()];
 }

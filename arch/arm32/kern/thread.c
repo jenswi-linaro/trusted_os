@@ -42,7 +42,7 @@ static struct thread_core_local thread_core_local[NUM_CPUS];
 
 thread_call_handler_t thread_stdcall_handler_ptr;
 static thread_call_handler_t thread_fastcall_handler_ptr;
-static thread_fiq_handler_t thread_fiq_handler_ptr;
+thread_fiq_handler_t thread_fiq_handler_ptr;
 thread_svc_handler_t thread_svc_handler_ptr;
 thread_abort_handler_t thread_abort_handler_ptr;
 
@@ -106,11 +106,10 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!found_thread) {
-		args->smc_func_id = SMC_CALL_RETURN;
-		args->param1 = SMC_RETURN_TRUSTED_OS_ENOTHR;
+		args->smc_func_id = SMC_RETURN_TRUSTED_OS_ENOTHR;
+		args->param1 = 0;
 		args->param2 = 0;
 		args->param3 = 0;
-		args->param4 = 0;
 		return;
 	}
 
@@ -150,11 +149,10 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!thread_id_ok || args->param7 != threads[n].hyp_clnt_id) {
-		args->smc_func_id = SMC_CALL_RETURN;
-		args->param1 = SMC_RETURN_TRUSTED_OS_EBADTHR;
+		args->smc_func_id = SMC_RETURN_TRUSTED_OS_EBADTHR;
+		args->param1 = 0;
 		args->param2 = 0;
 		args->param3 = 0;
-		args->param4 = 0;
 		return;
 	}
 
@@ -177,15 +175,7 @@ void thread_handle_smc_call(struct thread_smc_args *args)
 	check_canaries();
 
 	if (SMC_IS_FAST_CALL(args->smc_func_id)) {
-		if (args->smc_func_id == SMC_CALL_HANDLE_FIQ) {
-			thread_fiq_handler_ptr();
-			/* Return to monitor with this call number */
-			args->smc_func_id = SMC_CALL_RETURN_FROM_FIQ;
-		} else {
-			thread_fastcall_handler_ptr(args);
-			/* Return to monitor with this call number */
-			args->smc_func_id = SMC_CALL_RETURN;
-		}
+		thread_fastcall_handler_ptr(args);
 	} else {
 		if (args->smc_func_id == SMC_CALL_RETURN_FROM_RPC)
 			thread_resume_from_rpc(args);
@@ -251,6 +241,7 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 			l->curr_thread = -1;
 
 			thread_set_irq_sp(sp);
+			thread_set_fiq_sp(sp);
 		}
 		break;
 

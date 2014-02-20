@@ -30,14 +30,6 @@
 #include <sys/types.h>
 
 struct sm_nsec_ctx {
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
 	uint32_t usr_sp;
 	uint32_t usr_lr;
 	uint32_t irq_spsr;
@@ -54,37 +46,6 @@ struct sm_nsec_ctx {
 	uint32_t und_lr;
 	uint32_t mon_lr;
 	uint32_t mon_spsr;
-};
-
-struct sm_sec_ctx {
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
-	uint32_t usr_sp;
-	uint32_t usr_lr;
-	uint32_t irq_spsr;
-	uint32_t irq_sp;
-	uint32_t irq_lr;
-	uint32_t svc_spsr;
-	uint32_t svc_sp;
-	uint32_t svc_lr;
-	uint32_t abt_spsr;
-	uint32_t abt_sp;
-	uint32_t abt_lr;
-	uint32_t und_spsr;
-	uint32_t und_sp;
-	uint32_t und_lr;
-	uint32_t mon_lr;
-	uint32_t mon_spsr;
-};
-
-struct sm_pre_fiq_ctx {
-	uint32_t scr;
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
 	uint32_t r4;
 	uint32_t r5;
 	uint32_t r6;
@@ -94,6 +55,9 @@ struct sm_pre_fiq_ctx {
 	uint32_t r10;
 	uint32_t r11;
 	uint32_t r12;
+};
+
+struct sm_sec_ctx {
 	uint32_t usr_sp;
 	uint32_t usr_lr;
 	uint32_t irq_spsr;

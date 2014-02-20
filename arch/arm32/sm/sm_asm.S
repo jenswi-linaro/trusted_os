@@ -35,48 +35,52 @@ LOCAL_FUNC sm_save_modes_regs , :
 	stm	r0!, {sp, lr}
 
 	cps	#CPSR_MODE_IRQ
-	mrs	r1, spsr
-	stm	r0!, {r1, sp, lr}
+	mrs	r2, spsr
+	stm	r0!, {r2, sp, lr}
 
 	cps	#CPSR_MODE_SVC
-	mrs	r1, spsr
-	stm	r0!, {r1, sp, lr}
+	mrs	r2, spsr
+	stm	r0!, {r2, sp, lr}
 
 	cps	#CPSR_MODE_ABT
-	mrs	r1, spsr
-	stm	r0!, {r1, sp, lr}
+	mrs	r2, spsr
+	stm	r0!, {r2, sp, lr}
 
 	cps	#CPSR_MODE_UND
-	mrs	r1, spsr
-	stm	r0!, {r1, sp, lr}
+	mrs	r2, spsr
+	stm	r0!, {r2, sp, lr}
 
 	cps	#CPSR_MODE_MON
+	ldm	r1, {r2-r3}		/* Load SPSR and LR from the stack */
+	stm	r0!, {r2-r3}		/* Store SPSR and LR in context */
 	bx	lr
 END_FUNC sm_save_modes_regs
 
-/* Restores the mode specific registers, must preserve r12 */
+/* Restores the mode specific registers */
 LOCAL_FUNC sm_restore_modes_regs , :
 	/* User mode registers has to be saved from system mode */
 	cps	#CPSR_MODE_SYS
 	ldm	r0!, {sp, lr}
 
 	cps	#CPSR_MODE_IRQ
-	ldm	r0!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r0!, {r2, sp, lr}
+	msr	spsr, r2
 
 	cps	#CPSR_MODE_SVC
-	ldm	r0!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r0!, {r2, sp, lr}
+	msr	spsr, r2
 
 	cps	#CPSR_MODE_ABT
-	ldm	r0!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r0!, {r2, sp, lr}
+	msr	spsr, r2
 
 	cps	#CPSR_MODE_UND
-	ldm	r0!, {r1, sp, lr}
-	msr	spsr, r1
+	ldm	r0!, {r2, sp, lr}
+	msr	spsr, r2
 
 	cps	#CPSR_MODE_MON
+	ldm	r0!, {r2-r3}		/* Load SPSR and LR from context */
+	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 	bx	lr
 END_FUNC sm_restore_modes_regs
 
@@ -95,93 +99,41 @@ LOCAL_FUNC sm_smc_entry , :
 	tst	r1, #SCR_NS
 	bne	.smc_nsec_entry
 
-	ldr	r1, =SMC_CALL_RETURN
-	cmp	r0, r1
-	beq	.smc_ret_to_nsec	/* Normal return to non-secure */
-
-	ldr	r1, =SMC_CALL_RETURN_FROM_FIQ
-	cmp	r0, r1
-	beq	.smc_ret_from_fiq	/* Return from FIQ */
-
-	ldr	r0, =SMC_CALL_UNKNOWN
-	b	.smc_exit		/* Unknown secure call, return error */
-
-.smc_ret_from_fiq:
-	/*
-	 * It's a return from FIQ
-	 *
-	 * Restore the context saved when receiving the FIQ
-	 */
-	bl	sm_get_pre_fiq_ctx
-	ldm	r0!, {r2}
-	add	r1, sp, #SMC_ENTRY_R0R3_OFFS /* Where pop below will read */
-	push	{r2, r3}		/* Save SCR for below */
-	ldm	r0!, {r4-r7}		/* Load saved r0-r3 */
-	stm	r1, {r4-r7}		/* Write r0-r3 in stack */
-	ldm	r0!, {r4-r12}
-	bl	sm_restore_modes_regs
-	pop	{r2, r3}
-	write_scr r2			/* Restore SCR */
-	ldm	r0, {r2-r3} 		/* Load SPSR and LR from context */
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where rfefd will read */
-	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
-	b	.smc_exit
-
 .smc_ret_to_nsec:
-	/*
-	 * When doing a return from secure world to non-secure world
-	 * secure world has issued an smc with SMC_CALL_RETURN in r0
-	 * and the return values for non-secure world in r1-r4. Non-secure
-	 * world expects return values in r0-r3, do that shift here.
-	 */
-	pop	{r0}			/* smc call number should be removed */
-	pop	{r0-r2}
-	mov	r3, r4
-	push	{r0-r3}
-
 	/* Save secure context */
 	bl	sm_get_sec_ctx
-	stm	r0!, {r8-r11}
-	bl	sm_save_modes_regs
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
-	ldm	r1, {r2-r3}		/* Load SPSR and LR from stack */
-	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
+	bl	sm_save_modes_regs
 
 	/* Restore non-secure context */
 	bl	sm_get_nsec_ctx
-	ldm	r0!, {r4-r11}
+	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_restore_modes_regs
-	ldm	r0, {r2-r3}		/* Load SPSR and LR from context */
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where rfefd will read */
-	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
+	ldm	r0!, {r4-r12}
 
-	/* Set NS bit in SCR */
+	/* Update SCR */
 	read_scr r0
-	orr	r0, r0, #SCR_NS
+	orr	r0, r0, #(SCR_NS | SCR_FIQ) /* Set NS and FIQ bit in SCR */
 	write_scr r0
 
 	b	.smc_exit
 
 .smc_nsec_entry:
-	/* Clear NS bit in SCR */
-	bic	r1, r1, #SCR_NS
+	bic	r1, r1, #(SCR_NS | SCR_FIQ)/* Clear NS and FIQ bit in SCR */
 	write_scr r1
 
 	/* Save non-secure context */
+	push	{r12, lr}
 	bl	sm_get_nsec_ctx
-	stm	r0!, {r4-r11}
-	bl	sm_save_modes_regs
+	pop	{r12, lr}
 	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
-	ldm	r1, {r2-r3}		/* Load SPSR and LR from stack */
-	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
+	bl	sm_save_modes_regs
+	stm	r0!, {r4-r12}
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
-	ldm	r0!, {r8-r11}
+	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_restore_modes_regs
-	ldm	r0, {r2-r3}		/* Load SPSR and LR from context */
-	add	r1, sp, #SMC_ENTRY_SRS_OFFS /* Where rfefd will read */
-	stm	r1, {r2-r3}		/* Store SPSR and LR in stack */
 
 .smc_exit:
 	pop	{r0-r3}
@@ -199,34 +151,35 @@ LOCAL_FUNC sm_fiq_entry , :
 	/* FIQ has a +4 offset for lr compared to preferred return address */
 	sub	lr, lr, #4
 	srsdb	sp!, #CPSR_MODE_MON
-	push	{r4-r8, r12}
 	push	{r0-r3}
+/* Positions relative to stack pointer */
+#define FIQ_ENTRY_R0R3_OFFS	0
+#define FIQ_ENTRY_SRS_OFFS	(4 * 4 + SMC_ENTRY_R0R3_OFFS)
 
-	bl      sm_get_pre_fiq_ctx
-
-	read_scr r1			/* Get SCR */
-	stm	r0!, {r1}		/* Save SCR */
-
-	/* Clear NS bit in SCR */
-	bic	r1, r1, #SCR_NS
+	/* Update SCR */
+	read_scr r1
+	bic	r1, r1, #(SCR_NS | SCR_FIQ) /* Set NS and FIQ bit in SCR */
 	write_scr r1
 
-	pop	{r4-r7}			/* Load saved R0-R3 */
-	stm	r0!, {r4-r7}		/* Save R0-R3 */
-	pop	{r4-r8, r12}		/* Load saved R4-R8 and R12 */
-	stm	r0!, {r4-r12}
+	/* Save non-secure context */
+	push	{r12, lr}
+	bl	sm_get_nsec_ctx
+	pop	{r12, lr}
+	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_save_modes_regs
-	ldm	sp, {r2-r3}		/* Load SPSR and LR from stack */
-	stm	r0, {r2-r3}		/* Store SPSR and LR in context */
+	stm	r0!, {r4-r12}
 
 	/* Restore secure context */
 	bl	sm_get_sec_ctx
-	ldm	r0!, {r8-r11}
+	add	r1, sp, #FIQ_ENTRY_SRS_OFFS /* Where srsdb wrote */
 	bl	sm_restore_modes_regs
-	ldm	r0, {r2-r3}		/* Load SPSR and LR from context */
-	stm	sp, {r2-r3}		/* Store SPSR and LR in stack */
 
-	ldr	r0, =SMC_CALL_HANDLE_FIQ /* Post the FIQ to Trusted OS */
+	/*
+	 * FIQ handling (return from SMC_CALL_HANDLE_FIQ) has to return
+	 * supplied R1-R4 in R0-R3 since R0-R3 aren't saved anywhere else.
+	 */
+	pop	{r1-r4}		/* R0-R3 pushed at entry */
+	ldr	r0, =SMC_CALL_HANDLE_FIQ /* Let Trusted OS handle FIQ */
 
 	rfefd	sp!
 END_FUNC sm_fiq_entry
@@ -256,11 +209,6 @@ FUNC sm_init , :
 	/* Set monitor vector (MVBAR) */
 	ldr	r0, =sm_vect_table
 	write_mvbar r0
-
-	/* Configure FIQ exceptions to be taken to monitor mode. */
-	read_scr r0
-	orr	r0, r0, #SCR_FIQ
-	write_scr r0
 
 	pop	{r0, pc}
 END_FUNC sm_init
