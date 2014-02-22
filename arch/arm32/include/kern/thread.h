@@ -34,14 +34,14 @@
 #define THREAD_TMP_STACK	0xffffffff
 
 struct thread_smc_args {
-	uint32_t smc_func_id;
-	uint32_t param1;
-	uint32_t param2;
-	uint32_t param3;
-	uint32_t param4;	/* Thread ID when returning from RPC */
-	uint32_t param5;
-	uint32_t param6;	/* Optional session ID */
-	uint32_t param7;	/* Hypervisor Client ID */
+	uint32_t a0;
+	uint32_t a1;
+	uint32_t a2;
+	uint32_t a3;
+	uint32_t a4;	/* Thread ID when returning from RPC */
+	uint32_t a5;
+	uint32_t a6;	/* Optional session ID */
+	uint32_t a7;	/* Hypervisor Client ID */
 };
 
 /*

@@ -104,37 +104,37 @@ static void tee_invoke(struct tee_invoke_command_arg *arg)
 
 void tee_entry(struct thread_smc_args *args)
 {
-	switch (args->smc_func_id) {
+	switch (args->a0) {
 	case TEE_FUNC_OPEN_SESSION:
 		kprintf("TEE_FUNC_OPEN_SESSION\n");
-		args->smc_func_id = 0;
+		args->a0 = 0;
 		break;
 	case TEE_FUNC_CLOSE_SESSION:
 		kprintf("TEE_FUNC_CLOSE_SESSION\n");
-		args->smc_func_id = -1;
+		args->a0 = -1;
 		break;
 	case TEE_FUNC_INVOKE:
 		kprintf("TEE_FUNC_INVOKE\n");
-		tee_invoke((struct tee_invoke_command_arg *)args->param1);
-		args->smc_func_id = 0;
+		tee_invoke((struct tee_invoke_command_arg *)args->a1);
+		args->a0 = 0;
 		break;
 	case TEE_FUNC_REGISTER_RPC:
 		kprintf("TEE_FUNC_REGISTER_RPC\n");
-		args->smc_func_id = -1;
+		args->a0 = -1;
 		break;
 	case TEE_FUNC_CANCEL:
 		kprintf("TEE_FUNC_CANCEL\n");
-		args->smc_func_id = -1;
+		args->a0 = -1;
 		break;
 	default:
-		kprintf("Unknown function 0x%x\n", args->smc_func_id);
+		kprintf("Unknown function 0x%x\n", args->a0);
 		kprintf("TEE_FUNC_OPEN_SESSION  0x%x\n", TEE_FUNC_OPEN_SESSION);
 		kprintf("TEE_FUNC_CLOSE_SESSION 0x%x\n",
 			TEE_FUNC_CLOSE_SESSION);
 		kprintf("TEE_FUNC_INVOKE        0x%x\n", TEE_FUNC_INVOKE);
 		kprintf("TEE_FUNC_REGISTER_RPC  0x%x\n", TEE_FUNC_REGISTER_RPC);
 		kprintf("TEE_FUNC_CANCEL        0x%x\n", TEE_FUNC_CANCEL);
-		args->smc_func_id = -1;
+		args->a0 = -1;
 		break;;
 	}
 }

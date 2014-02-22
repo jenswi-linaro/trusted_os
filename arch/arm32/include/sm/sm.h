@@ -76,17 +76,6 @@ struct sm_sec_ctx {
 	uint32_t mon_spsr;
 };
 
-struct sm_arch32_params {
-	uint32_t arg0;
-	uint32_t arg1;
-	uint32_t arg2;
-	uint32_t arg3;
-	uint32_t arg4;
-	uint32_t arg5;
-	uint32_t arg6;
-	uint32_t arg7;
-};
-
 /* Returns storage location of non-secure context for current CPU */
 struct sm_nsec_ctx *sm_get_nsec_ctx(void);
 

@@ -297,10 +297,6 @@ LOCAL_FUNC thread_irq_handler , :
 	cps	#CPSR_MODE_SVC
 	mov	sp, r0
 
-	/*
-	 * r1-r4 will be shifted to r0-r3 in the monitor when returning
-	 * to normal world.
-	 */
 	mov	r0, #SMC_RETURN_TRUSTED_OS_RPC
 	mov	r1, #SMC_RPC_REQUEST_IRQ
 	mov	r2, #0

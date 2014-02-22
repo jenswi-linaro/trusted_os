@@ -75,14 +75,14 @@ static void thread_copy_args_to_ctx(struct thread_smc_args *args,
 	 * Copy arguments into context. This will make the
 	 * arguments appear in r0-r7 when thread is resumed.
 	 */
-	regs->r0 = args->smc_func_id;
-	regs->r1 = args->param1;
-	regs->r2 = args->param2;
-	regs->r3 = args->param3;
-	regs->r4 = args->param4;
-	regs->r5 = args->param5;
-	regs->r6 = args->param6;
-	regs->r7 = args->param7;
+	regs->r0 = args->a0;
+	regs->r1 = args->a1;
+	regs->r2 = args->a2;
+	regs->r3 = args->a3;
+	regs->r4 = args->a4;
+	regs->r5 = args->a5;
+	regs->r6 = args->a6;
+	regs->r7 = args->a7;
 }
 
 static void thread_alloc_and_run(struct thread_smc_args *args)
@@ -106,10 +106,10 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!found_thread) {
-		args->smc_func_id = SMC_RETURN_TRUSTED_OS_ENOTHR;
-		args->param1 = 0;
-		args->param2 = 0;
-		args->param3 = 0;
+		args->a0 = SMC_RETURN_TRUSTED_OS_ENOTHR;
+		args->a1 = 0;
+		args->a2 = 0;
+		args->a3 = 0;
 		return;
 	}
 
@@ -126,14 +126,14 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	thread_copy_args_to_ctx(args, &threads[n].regs);
 
 	/* Save Hypervisor Client ID */
-	threads[n].hyp_clnt_id = args->param7;
+	threads[n].hyp_clnt_id = args->a7;
 
 	thread_resume(&threads[n].regs);
 }
 
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
-	size_t n = args->param4; /* thread id */
+	size_t n = args->a4; /* thread id */
 	struct thread_core_local *l = get_core_local();
 	bool thread_id_ok = false;
 
@@ -148,11 +148,11 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	unlock_global();
 
-	if (!thread_id_ok || args->param7 != threads[n].hyp_clnt_id) {
-		args->smc_func_id = SMC_RETURN_TRUSTED_OS_EBADTHR;
-		args->param1 = 0;
-		args->param2 = 0;
-		args->param3 = 0;
+	if (!thread_id_ok || args->a7 != threads[n].hyp_clnt_id) {
+		args->a0 = SMC_RETURN_TRUSTED_OS_EBADTHR;
+		args->a1 = 0;
+		args->a2 = 0;
+		args->a3 = 0;
 		return;
 	}
 
@@ -174,10 +174,10 @@ void thread_handle_smc_call(struct thread_smc_args *args)
 {
 	check_canaries();
 
-	if (SMC_IS_FAST_CALL(args->smc_func_id)) {
+	if (SMC_IS_FAST_CALL(args->a0)) {
 		thread_fastcall_handler_ptr(args);
 	} else {
-		if (args->smc_func_id == SMC_CALL_RETURN_FROM_RPC)
+		if (args->a0 == SMC_CALL_RETURN_FROM_RPC)
 			thread_resume_from_rpc(args);
 		else
 			thread_alloc_and_run(args);
