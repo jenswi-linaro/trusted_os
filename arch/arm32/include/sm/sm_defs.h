@@ -73,7 +73,7 @@
 /* Returned in r0 only from Trusted OS functions */
 #define SMC_RETURN_TRUSTED_OS_OK	0x0
 #define SMC_RETURN_TRUSTED_OS_RPC	0x1
-#define SMC_RETURN_TRUSTED_OS_ENOTHR	0x10
+#define SMC_RETURN_TRUSTED_OS_EBUSY	0x3
 #define SMC_RETURN_TRUSTED_OS_EBADTHR	0x11
 
 /* Returned in r1 by Trusted OS functions if r0 = SMC_RETURN_TRUSTED_OS_RPC */

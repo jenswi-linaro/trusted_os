@@ -68,6 +68,18 @@ static struct thread_core_local *get_core_local(void)
 	return l;
 }
 
+static bool have_one_active_thread(void)
+{
+	size_t n;
+
+	for (n = 0; n < NUM_THREADS; n++) {
+		if (threads[n].state == THREAD_STATE_ACTIVE)
+			return true;
+	}
+
+	return false;
+}
+
 static void thread_copy_args_to_ctx(struct thread_smc_args *args,
 		struct thread_ctx_regs *regs)
 {
@@ -95,18 +107,20 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	lock_global();
 
-	for (n = 0; n < NUM_THREADS; n++) {
-		if (threads[n].state == THREAD_STATE_FREE) {
-			threads[n].state = THREAD_STATE_ACTIVE;
-			found_thread = true;
-			break;
+	if (!have_one_active_thread()) {
+		for (n = 0; n < NUM_THREADS; n++) {
+			if (threads[n].state == THREAD_STATE_FREE) {
+				threads[n].state = THREAD_STATE_ACTIVE;
+				found_thread = true;
+				break;
+			}
 		}
 	}
 
 	unlock_global();
 
 	if (!found_thread) {
-		args->a0 = SMC_RETURN_TRUSTED_OS_ENOTHR;
+		args->a0 = SMC_RETURN_TRUSTED_OS_EBUSY;
 		args->a1 = 0;
 		args->a2 = 0;
 		args->a3 = 0;
@@ -135,21 +149,26 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
 	size_t n = args->a2; /* thread id */
 	struct thread_core_local *l = get_core_local();
-	bool thread_id_ok = false;
+	uint32_t rv = 0;
 
 	assert(l->curr_thread == -1);
 
 	lock_global();
 
-	if (n < NUM_THREADS && threads[n].state == THREAD_STATE_SUSPENDED) {
-		thread_id_ok = true;
+	if (have_one_active_thread()) {
+		rv = SMC_RETURN_TRUSTED_OS_EBUSY;
+	} else if (n < NUM_THREADS &&
+		threads[n].state == THREAD_STATE_SUSPENDED &&
+		args->a7 == threads[n].hyp_clnt_id) {
 		threads[n].state = THREAD_STATE_ACTIVE;
+	} else {
+		rv = SMC_RETURN_TRUSTED_OS_EBADTHR;
 	}
 
 	unlock_global();
 
-	if (!thread_id_ok || args->a7 != threads[n].hyp_clnt_id) {
-		args->a0 = SMC_RETURN_TRUSTED_OS_EBADTHR;
+	if (rv) {
+		args->a0 = rv;
 		args->a1 = 0;
 		args->a2 = 0;
 		args->a3 = 0;
