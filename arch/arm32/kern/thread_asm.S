@@ -288,6 +288,7 @@ LOCAL_FUNC thread_irq_handler , :
 	mrs	r1, spsr
 	pop	{r2}
 	blx	thread_state_suspend
+	mov	r2, r0		/* Supply thread index */
 
 	/*
 	 * Switch to SVC mode and copy current stack pointer as it already
@@ -299,7 +300,7 @@ LOCAL_FUNC thread_irq_handler , :
 
 	mov	r0, #SMC_RETURN_TRUSTED_OS_RPC
 	mov	r1, #SMC_RPC_REQUEST_IRQ
-	mov	r2, #0
+	/* r2 is already filled in above */
 	mov	r3, #0
 	b	thread_issue_smc
 END_FUNC thread_irq_handler

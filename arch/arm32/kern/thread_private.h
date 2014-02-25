@@ -117,8 +117,9 @@ void thread_handle_smc_call(struct thread_smc_args *args);
 /*
  * Marks the current thread as suspended. And updated the flags
  * for the thread context (see thread resume for use of flags).
+ * Returns thread index of the thread that was suspended.
  */
-void thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc);
+int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc);
 
 /*
  * Marks the current thread as free.

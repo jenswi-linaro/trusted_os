@@ -133,7 +133,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
-	size_t n = args->a4; /* thread id */
+	size_t n = args->a2; /* thread id */
 	struct thread_core_local *l = get_core_local();
 	bool thread_id_ok = false;
 
@@ -207,26 +207,28 @@ void thread_state_free(void)
 	unlock_global();
 }
 
-void thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
+int thread_state_suspend(uint32_t flags, uint32_t cpsr, uint32_t pc)
 {
 	struct thread_core_local *l = get_core_local();
+	int ct = l->curr_thread;
 
-	assert(l->curr_thread != -1);
+	assert(ct != -1);
 
 	check_canaries();
 
 	lock_global();
 
-	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
-	threads[l->curr_thread].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
-	threads[l->curr_thread].flags |=
-		flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN;
-	threads[l->curr_thread].regs.cpsr = cpsr;
-	threads[l->curr_thread].regs.pc = pc;
-	threads[l->curr_thread].state = THREAD_STATE_SUSPENDED;
+	assert(threads[ct].state == THREAD_STATE_ACTIVE);
+	threads[ct].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+	threads[ct].flags |= flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN;
+	threads[ct].regs.cpsr = cpsr;
+	threads[ct].regs.pc = pc;
+	threads[ct].state = THREAD_STATE_SUSPENDED;
 	l->curr_thread = -1;
 
 	unlock_global();
+
+	return ct;
 }
 
 
