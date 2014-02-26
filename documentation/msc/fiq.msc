@@ -6,16 +6,19 @@ msc {
 
 
 	||| ;
-	--- [ label = "Running in either non-secure or secure world" ];
+	--- [ label = "Running in non-secure world (SCR_NS set)" ];
 	... ;
 	--- [ label = "IRQ and FIQ masked,\nFIQ received" ];
-	b=>b [ label = "Save current context as \"pre FIQ context\"" ];
-	b=>b [ label = "Restore last secure world context" ];
+	b=>b [ label = "Save non-secure context" ];
+	b=>b [ label = "Restore secure context" ];
 	b>>c [ label = "eret: FIQ" ];
-	c=>c [ label = "process FIQ" ];
-	c=>b [ label = "smc: return from FIQ" ];
-	b=>b [ label = "restore context from \"pre FIQ context\"" ];
-	b>>b [ label = "eret: return to either Normal world or Trusted OS" ];
+	--- [ label = "FIQ unmasked" ];
+	d=>d [ label = "process received FIQ" ];
+	--- [ label = "FIQ masked" ];
+	c=>b [ label = "smc: return" ];
+	b=>b [ label = "Save secure context" ];
+	b=>b [ label = "Restore non-secure context" ];
+	b>>a [ label = "eret: return to Normal world" ];
 	--- [ label = "IRQ and FIQ unmasked" ];
 	... ;
 }
