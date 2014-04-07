@@ -27,7 +27,7 @@
 #include <asm.S>
 #include <arm32.h>
 #include <arm32_macros.S>
-#include <sm/sm_defs.h>
+#include <sm/teesmc.h>
 
 LOCAL_FUNC sm_save_modes_regs , :
 	/* User mode registers has to be saved from system mode */
@@ -97,7 +97,7 @@ LOCAL_FUNC sm_smc_entry , :
 	/* Find out if we're doing an secure or non-secure entry */
 	read_scr r1
 	tst	r1, #SCR_NS
-	bne	.smc_nsec_entry
+	bne	.smc_ret_to_sec
 
 .smc_ret_to_nsec:
 	/* Save secure context */
@@ -118,7 +118,7 @@ LOCAL_FUNC sm_smc_entry , :
 
 	b	.smc_exit
 
-.smc_nsec_entry:
+.smc_ret_to_sec:
 	bic	r1, r1, #(SCR_NS | SCR_FIQ)/* Clear NS and FIQ bit in SCR */
 	write_scr r1
 
@@ -175,11 +175,11 @@ LOCAL_FUNC sm_fiq_entry , :
 	bl	sm_restore_modes_regs
 
 	/*
-	 * FIQ handling (return from SMC_CALL_HANDLE_FIQ) has to return
+	 * FIQ handling (return from TEESMC_CALL_HANDLE_FIQ) has to return
 	 * supplied R1-R4 in R0-R3 since R0-R3 aren't saved anywhere else.
 	 */
 	pop	{r1-r4}		/* R0-R3 pushed at entry */
-	ldr	r0, =SMC_CALL_HANDLE_FIQ /* Let Trusted OS handle FIQ */
+	ldr	r0, =TEESMC32_CALL_HANDLE_FIQ /* Let Trusted OS handle FIQ */
 
 	rfefd	sp!
 END_FUNC sm_fiq_entry

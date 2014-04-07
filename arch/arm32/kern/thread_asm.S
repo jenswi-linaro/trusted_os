@@ -27,7 +27,7 @@
 #include <asm.S>
 #include <arm32.h>
 #include <arm32_macros.S>
-#include <sm/sm_defs.h>
+#include <sm/teesmc.h>
 #include <kern/thread_defs.h>
 
 FUNC thread_set_abt_sp , :
@@ -56,7 +56,7 @@ FUNC thread_set_fiq_sp , :
 END_FUNC thread_set_irq_sp
 
 FUNC thread_recv_smc_call , :
-	ldr	r9, =SMC_CALL_HANDLE_FIQ
+	ldr	r9, =TEESMC32_CALL_HANDLE_FIQ
 	cmp	r0, r9
 	bne	.recv_smc
 	/*
@@ -135,8 +135,7 @@ END_FUNC thread_resume
  * CPSR.
  */
 LOCAL_FUNC thread_save_state , :
-	push	{lr}
-	push	{r12}
+	push	{r12, lr}
 	/*
 	 * Uses stack for temporary storage, while storing needed
 	 * context in the thread context struct.
@@ -160,7 +159,7 @@ LOCAL_FUNC thread_save_state , :
 	stm	r0!, {r1-r4}
 	stm	r0!, {r8-r11}
 
-	pop	{r12}			/* r12 pushed above */
+	pop	{r12, lr}
 	stm	r0!, {r12}
 
         cps     #CPSR_MODE_SYS
@@ -190,7 +189,7 @@ LOCAL_FUNC thread_save_state , :
 	msr	cpsr, r6		/* Restore mode */
 
 	mov	r0, r5			/* Return original CPSR */
-	pop	{pc}
+	bx	lr
 END_FUNC thread_save_state
 
 FUNC thread_stdcall_entry , :
@@ -224,11 +223,11 @@ END_FUNC thread_stdcall_entry
 
 
 /*
- * uint32_t thread_rpc(uint32_t rv0, uint32_t rv1, uint32_t rv2, uint32_t rv3)
+ * void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
  */
 FUNC thread_rpc , :
-	push	{r12, lr}
-	push	{r0-r3}
+	push	{lr}
+	push	{r0}
 
 	bl	thread_save_state
 	mov	r4, r0			/* Save original CPSR */
@@ -237,26 +236,30 @@ FUNC thread_rpc , :
  	 * Switch to temporary stack and SVC mode. Save CPSR to resume into.
 	 */
 	bl	thread_get_tmp_sp
-	pop	{r4-r7}			/* Originally pushed r0-r3 */
+	ldr	r5, [sp]		/* Get pointer to rv[] */
 	cps	#CPSR_MODE_SVC		/* Change to SVC mode */
 	mov	sp, r0			/* Switch to tmp stack */
-	push	{r4-r7}			/* Save original r0-r3 again */
 
 	mov	r0, #THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	mov	r1, r4			/* CPSR to restore */
 	ldr	r2, =.thread_rpc_return
 	bl	thread_state_suspend
-	pop	{r0-r3}
+	mov	r3, r0			/* Supply thread index */
+	ldm	r5, {r0-r2}		/* Load rv[] into r0-r2 */
 	b	thread_issue_smc
 
 .thread_rpc_return:
 	/*
+	 * At this point has the stack pointer been restored to the value
+	 * it had when thread_save_state() was called above.
+	 *
 	 * Jumps here from thread_resume above when RPC has returned. The
 	 * IRQ and FIQ bits are restored to what they where when this
 	 * function was originally entered.
 	 */
-	pop	{r12, lr}
-	bx	lr
+	pop	{r12}			/* Get pointer to rv[] */
+	stm	r12, {r0-r2}		/* Store r0-r2 into rv[] */
+	pop	{pc}
 END_FUNC thread_rpc
 
 LOCAL_FUNC thread_fiq_handler , :
@@ -281,14 +284,16 @@ LOCAL_FUNC thread_irq_handler , :
 	cpsid	f			/* Disable FIQ also */
 	sub	lr, lr, #4
 	push	{lr}
+	push	{r12}
 
 	bl	thread_save_state
 
 	mov	r0, #0
 	mrs	r1, spsr
+	pop	{r12}
 	pop	{r2}
 	blx	thread_state_suspend
-	mov	r2, r0		/* Supply thread index */
+	mov	r3, r0		/* Supply thread index */
 
 	/*
 	 * Switch to SVC mode and copy current stack pointer as it already
@@ -298,10 +303,10 @@ LOCAL_FUNC thread_irq_handler , :
 	cps	#CPSR_MODE_SVC
 	mov	sp, r0
 
-	mov	r0, #SMC_RETURN_TRUSTED_OS_RPC
-	mov	r1, #SMC_RPC_REQUEST_IRQ
-	/* r2 is already filled in above */
-	mov	r3, #0
+	ldr	r0, =TEESMC_RETURN_RPC_IRQ
+	mov	r1, #0
+	mov	r2, #0
+	/* r3 is already filled in above */
 	b	thread_issue_smc
 END_FUNC thread_irq_handler
 

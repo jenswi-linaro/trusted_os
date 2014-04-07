@@ -44,14 +44,6 @@ struct thread_smc_args {
 	uint32_t a7;	/* Hypervisor Client ID */
 };
 
-/*
- * Suspends current thread and temorarily exits to non-secure world.
- * This function returns later when non-secure world returns.
- *
- * The purpose of this function is to deliver IRQs to non-secure world
- * and to request services from non-secure world.
- */
-uint32_t thread_rpc(uint32_t rv0, uint32_t rv1, uint32_t rv2, uint32_t rv3);
 
 struct thread_abort_regs {
 	uint32_t r0;
@@ -151,5 +143,30 @@ void thread_set_tsd(void *tsd, thread_tsd_free_t free_func);
 
 /* Returns Thread Specific Data (TSD) pointer. */
 void *thread_get_tsd(void);
+
+/**
+ * Allocates data for struct teesmc32_arg and for the payload buffers.
+ *
+ * @arg_size: size in bytes of struct teesmc32_arg
+ * @payload_size: size in bytes of payload buffers
+ * @arg: returned physical pointer to struct teesmc32_arg buffer
+ * @payload: returned physcial pointer to payload buffer
+ */
+void thread_rpc_alloc(size_t arg_size, size_t payload_size, paddr_t *arg,
+		paddr_t *payload);
+/**
+ * Free physical memory previously allocated with thread_rpc_alloc()
+ *
+ * @arg: physical pointer to struct teesmc32_arg buffer
+ * @payload: physical pointer to payload buffer
+ */
+void thread_rpc_free(paddr_t arg, paddr_t payload);
+
+/**
+ * Does an RPC with a physical pointer to a struct teesmc32_arg
+ *
+ * @arg: physical pointer to struct teesmc32_arg
+ */
+void thread_rpc_cmd(paddr_t arg);
 
 #endif /*THREAD_H*/

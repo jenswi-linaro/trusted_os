@@ -25,116 +25,78 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <kern/mmu.h>
-#include <sm/sm_defs.h>
+#include <sm/teesmc.h>
 #include <tee/entry.h>
+#include <string.h>
 #include <kprintf.h>
+#include <assert.h>
 
-#define TEE_CALL(func_num)	SMC_CALL_VAL(SMC_STD_CALL, SMC_32, \
-					SMC_OWNER_TRUSTED_OS, (func_num))
-
-#define TEE_FUNC_OPEN_SESSION    TEE_CALL(1)
-#define TEE_FUNC_CLOSE_SESSION   TEE_CALL(2)
-#define TEE_FUNC_INVOKE          TEE_CALL(3)
-#define TEE_FUNC_REGISTER_RPC    TEE_CALL(4)
-#define TEE_FUNC_CANCEL          TEE_CALL(5)
-
-#define TEEC_CONFIG_PAYLOAD_REF_COUNT 4
-#define TEE_UUID_CLOCK_SIZE 8
-
-
-struct tee_uuid {
-	uint32_t timeLow;
-	uint16_t timeMid;
-	uint16_t timeHiAndVersion;
-	uint8_t clockSeqAndNode[TEE_UUID_CLOCK_SIZE];
-};
-
-struct tee_identity {
-	uint32_t login;
-	struct tee_uuid uuid;
-};
-
-struct tee_value {
-	uint32_t a;
-	uint32_t b;
-};
-
-
-struct tee_memref {
-	void *buffer;
-	size_t size;
-};
-
-struct tee_open_session_arg {
-	uint32_t res;
-	uint32_t origin;
-	uint32_t sess;
-	struct ta_signed_header_t *ta;
-	struct tee_uuid *uuid;
-	uint32_t param_types;
-	struct tee_value params[TEEC_CONFIG_PAYLOAD_REF_COUNT];
-	struct tee_identity client_id;
-	uint32_t params_flags[TEEC_CONFIG_PAYLOAD_REF_COUNT];
-};
-
-struct tee_invoke_command_arg {
-	uint32_t res;
-	uint32_t origin;
-	uint32_t sess;
-	uint32_t cmd;
-	uint32_t param_types;
-	struct tee_value params[TEEC_CONFIG_PAYLOAD_REF_COUNT];
-	struct tee_identity client_id;
-	uint32_t params_flags[TEEC_CONFIG_PAYLOAD_REF_COUNT];
-};
-
-struct tee_cancel_command_arg {
-	uint32_t res;
-	uint32_t origin;
-	uint32_t sess;
-	struct tee_identity client_id;
-};
-
-static void tee_invoke(struct tee_invoke_command_arg *arg)
+static void tee_invoke(struct teesmc32_arg *arg32)
 {
-	arg->res = 0;
-	arg->origin = 0;
-	arg->params[0].a = arg->params[0].a +  arg->params[0].b;
+	union teesmc32_param *params = TEESMC32_GET_PARAMS(arg32);
+	struct teesmc32_arg *smcarg;
+	paddr_t phsmcarg;
+
+	kprintf("Doing thread_rpc_alloc\n");
+	thread_rpc_alloc(sizeof(struct teesmc32_arg), 0, &phsmcarg, NULL);
+	kprintf("thread_rpc_alloc returned 0x%x\n", phsmcarg);
+	smcarg = (struct teesmc32_arg *)phsmcarg;
+	memset(smcarg, 0, sizeof(struct teesmc32_arg));
+	smcarg->cmd = 0x12345;
+
+	kprintf("Doing RPC cmd 0x%x (phsmcarg 0x%x)\n", smcarg->cmd, phsmcarg);
+
+	thread_rpc_cmd(phsmcarg);
+
+	kprintf("RPC returned 0x%x\n", smcarg->ret);
+
+	kprintf("Doing thread_rpc_free\n");
+	thread_rpc_free(phsmcarg, 0);
+	kprintf("thread_rpc_free returned\n");
+
+	assert(arg32->num_params > 0);
+
+	arg32->ret = 0;
+	arg32->ret_origin = 0;
+	params[0].value.a = params[0].value.a + params[0].value.b;
 }
 
 void tee_entry(struct thread_smc_args *args)
 {
-	switch (args->a0) {
-	case TEE_FUNC_OPEN_SESSION:
-		kprintf("TEE_FUNC_OPEN_SESSION\n");
-		args->a0 = 0;
-		break;
-	case TEE_FUNC_CLOSE_SESSION:
-		kprintf("TEE_FUNC_CLOSE_SESSION\n");
+	struct teesmc32_arg *arg32;
+
+	if (args->a0 != TEESMC32_CALL_WITH_ARG &&
+	    args->a0 != TEESMC32_FASTCALL_WITH_ARG) {
+		kprintf("Unknown SMC 0x%x\n", args->a0);
+		kprintf("Expected 0x%x or 0x%x\n",
+			TEESMC32_CALL_WITH_ARG, TEESMC32_FASTCALL_WITH_ARG);
 		args->a0 = -1;
+		return;
+	}
+
+	arg32 = (struct teesmc32_arg *)args->a1;
+
+	switch (arg32->cmd) {
+	case TEESMC_CMD_OPEN_SESSION:
+		kprintf("TEESMC_CMD_OPEN_SESSION\n");
+		args->a0 = TEESMC_RETURN_OK;
 		break;
-	case TEE_FUNC_INVOKE:
-		kprintf("TEE_FUNC_INVOKE\n");
-		tee_invoke((struct tee_invoke_command_arg *)args->a1);
-		args->a0 = 0;
+	case TEESMC_CMD_CLOSE_SESSION:
+		kprintf("TEESMC_CMD_CLOSE_SESSION\n");
+		args->a0 = TEESMC_RETURN_OK;
 		break;
-	case TEE_FUNC_REGISTER_RPC:
-		kprintf("TEE_FUNC_REGISTER_RPC\n");
-		args->a0 = -1;
+	case TEESMC_CMD_INVOKE_COMMAND:
+		kprintf("TEESMC_CMD_INVOKE_COMMAND\n");
+		tee_invoke(arg32);
+		args->a0 = TEESMC_RETURN_OK;
 		break;
-	case TEE_FUNC_CANCEL:
-		kprintf("TEE_FUNC_CANCEL\n");
-		args->a0 = -1;
+	case TEESMC_CMD_CANCEL:
+		kprintf("TEESMC_CMD_CANCEL\n");
+		args->a0 = TEESMC_RETURN_OK;
 		break;
 	default:
-		kprintf("Unknown function 0x%x\n", args->a0);
-		kprintf("TEE_FUNC_OPEN_SESSION  0x%x\n", TEE_FUNC_OPEN_SESSION);
-		kprintf("TEE_FUNC_CLOSE_SESSION 0x%x\n",
-			TEE_FUNC_CLOSE_SESSION);
-		kprintf("TEE_FUNC_INVOKE        0x%x\n", TEE_FUNC_INVOKE);
-		kprintf("TEE_FUNC_REGISTER_RPC  0x%x\n", TEE_FUNC_REGISTER_RPC);
-		kprintf("TEE_FUNC_CANCEL        0x%x\n", TEE_FUNC_CANCEL);
-		args->a0 = -1;
+		kprintf("Unknown cmd 0x%x\n", arg32->cmd);
+		args->a0 = TEESMC_RETURN_UNKNOWN_FUNCTION;
 		break;;
 	}
 }

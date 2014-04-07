@@ -28,7 +28,6 @@
 #include <asm.S>
 #include <arm32.h>
 #include <arm32_macros.S>
-#include <sm/sm_defs.h>
 #include <plat.h>
 
 .section .text.boot

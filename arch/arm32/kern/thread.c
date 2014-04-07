@@ -27,7 +27,7 @@
 #include <kern/thread.h>
 #include <kern/thread_defs.h>
 #include "thread_private.h"
-#include <sm/sm_defs.h>
+#include <sm/teesmc.h>
 #include <arm32.h>
 #include <kern/mutex.h>
 #include <kern/misc.h>
@@ -80,23 +80,6 @@ static bool have_one_active_thread(void)
 	return false;
 }
 
-static void thread_copy_args_to_ctx(struct thread_smc_args *args,
-		struct thread_ctx_regs *regs)
-{
-	/*
-	 * Copy arguments into context. This will make the
-	 * arguments appear in r0-r7 when thread is resumed.
-	 */
-	regs->r0 = args->a0;
-	regs->r1 = args->a1;
-	regs->r2 = args->a2;
-	regs->r3 = args->a3;
-	regs->r4 = args->a4;
-	regs->r5 = args->a5;
-	regs->r6 = args->a6;
-	regs->r7 = args->a7;
-}
-
 static void thread_alloc_and_run(struct thread_smc_args *args)
 {
 	size_t n;
@@ -120,7 +103,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 	unlock_global();
 
 	if (!found_thread) {
-		args->a0 = SMC_RETURN_TRUSTED_OS_EBUSY;
+		args->a0 = TEESMC_RETURN_EBUSY;
 		args->a1 = 0;
 		args->a2 = 0;
 		args->a3 = 0;
@@ -137,7 +120,19 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 		threads[n].regs.cpsr |= CPSR_T;
 	/* Reinitialize stack pointer */
 	threads[n].regs.svc_sp = threads[n].stack_va_end;
-	thread_copy_args_to_ctx(args, &threads[n].regs);
+
+	/*
+	 * Copy arguments into context. This will make the
+	 * arguments appear in r0-r7 when thread is started.
+	 */
+	threads[n].regs.r0 = args->a0;
+	threads[n].regs.r1 = args->a1;
+	threads[n].regs.r2 = args->a2;
+	threads[n].regs.r3 = args->a3;
+	threads[n].regs.r4 = args->a4;
+	threads[n].regs.r5 = args->a5;
+	threads[n].regs.r6 = args->a6;
+	threads[n].regs.r7 = args->a7;
 
 	/* Save Hypervisor Client ID */
 	threads[n].hyp_clnt_id = args->a7;
@@ -147,7 +142,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 static void thread_resume_from_rpc(struct thread_smc_args *args)
 {
-	size_t n = args->a2; /* thread id */
+	size_t n = args->a3; /* thread id */
 	struct thread_core_local *l = get_core_local();
 	uint32_t rv = 0;
 
@@ -156,13 +151,13 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	lock_global();
 
 	if (have_one_active_thread()) {
-		rv = SMC_RETURN_TRUSTED_OS_EBUSY;
+		rv = TEESMC_RETURN_EBUSY;
 	} else if (n < NUM_THREADS &&
 		threads[n].state == THREAD_STATE_SUSPENDED &&
 		args->a7 == threads[n].hyp_clnt_id) {
 		threads[n].state = THREAD_STATE_ACTIVE;
 	} else {
-		rv = SMC_RETURN_TRUSTED_OS_EBADTHR;
+		rv = TEESMC_RETURN_ERESUME;
 	}
 
 	unlock_global();
@@ -182,7 +177,14 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 	 * get parameters from non-secure world.
 	 */
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
-		thread_copy_args_to_ctx(args, &threads[n].regs);
+		/*
+		 * Update returned values from RPC, values will appear in
+		 * r0-r3 when thread is resumed.
+		 */
+		threads[n].regs.r0 = args->a0;
+		threads[n].regs.r1 = args->a1;
+		threads[n].regs.r2 = args->a2;
+		threads[n].regs.r3 = args->a3;
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
@@ -193,10 +195,10 @@ void thread_handle_smc_call(struct thread_smc_args *args)
 {
 	check_canaries();
 
-	if (SMC_IS_FAST_CALL(args->a0)) {
+	if (TEESMC_IS_FAST_CALL(args->a0)) {
 		thread_fastcall_handler_ptr(args);
 	} else {
-		if (args->a0 == SMC_CALL_RETURN_FROM_RPC)
+		if (args->a0 == TEESMC32_CALL_RETURN_FROM_RPC)
 			thread_resume_from_rpc(args);
 		else
 			thread_alloc_and_run(args);
@@ -319,4 +321,32 @@ struct thread_ctx_regs *thread_get_ctx_regs(void)
 
 	assert(l->curr_thread != -1);
 	return &threads[l->curr_thread].regs;
+}
+
+void thread_rpc_alloc(size_t arg_size, size_t payload_size, paddr_t *arg,
+		paddr_t *payload)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+		TEESMC_RETURN_RPC_ALLOC, arg_size, payload_size};
+
+	thread_rpc(rpc_args);
+	if (arg)
+		*arg = rpc_args[1];
+	if (payload)
+		*payload = rpc_args[2];
+}
+
+void thread_rpc_free(paddr_t arg, paddr_t payload)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+		TEESMC_RETURN_RPC_FREE, arg, payload};
+
+	thread_rpc(rpc_args);
+}
+
+void thread_rpc_cmd(paddr_t arg)
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {TEESMC_RETURN_RPC_CMD, arg};
+
+	thread_rpc(rpc_args);
 }

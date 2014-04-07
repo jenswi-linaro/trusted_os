@@ -140,5 +140,15 @@ void thread_set_fiq_sp(vaddr_t sp);
 
 extern thread_call_handler_t thread_stdcall_handler_ptr;
 
+/*
+ * Suspends current thread and temorarily exits to non-secure world.
+ * This function returns later when non-secure world returns.
+ *
+ * The purpose of this function is to request services from non-secure
+ * world.
+ */
+#define THREAD_RPC_NUM_ARGS     3
+void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+
 #endif /*THREAD_PRIVATE_H*/
 
